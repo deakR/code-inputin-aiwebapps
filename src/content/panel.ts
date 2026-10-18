@@ -351,24 +351,59 @@ function layoutLauncher(): void {
   let top: number;
 
   if (!rect || position === 'fixed-bottom-right') {
-    left = viewportWidth - width - 20;
-    top = viewportHeight - height - 20;
-  } else if (position === 'above-left') {
-    left = rect.left + 16;
-    top = rect.top - height - 8;
-  } else if (position === 'inside-left') {
-    left = rect.left + 48;
-    top = rect.bottom - height - 10;
+    left = viewportWidth - width - 24;
+    top = viewportHeight - height - 24;
   } else {
-    left = rect.right - width - 48;
-    top = rect.bottom - height - 10;
+    // Locate landmark elements inside Gemini's prompt box
+    const plusBtn = box?.querySelector<HTMLElement>(
+      '.leading-actions-wrapper button, .leading-actions-wrapper, [aria-label*="Add" i], [aria-label*="attach" i], [aria-label*="plus" i]',
+    );
+    const plusRect = plusBtn?.getBoundingClientRect();
+
+    const trailingEl = box?.querySelector<HTMLElement>(
+      '.trailing-actions-wrapper, [aria-label*="model" i], [aria-label*="Microphone" i], .send-button',
+    );
+    const trailingRect = trailingEl?.getBoundingClientRect();
+
+    if (position === 'above-left') {
+      // 1. Horizontally: aligned with the center of the "+" icon
+      if (plusRect && plusRect.width > 0) {
+        left = plusRect.left + (plusRect.width - width) / 2;
+      } else {
+        left = rect.left + 16;
+      }
+      // 2. Vertically: hugs the top edge of the prompt box to avoid conversation buttons above
+      top = rect.top - height - 3;
+    } else if (position === 'inside-left') {
+      // Inside prompt box: next to the "+" button, vertically centered
+      if (plusRect && plusRect.width > 0) {
+        left = plusRect.right + 6;
+        top = plusRect.top + (plusRect.height - height) / 2;
+      } else {
+        left = rect.left + 48;
+        top = rect.top + (rect.height - height) / 2;
+      }
+    } else if (position === 'inside-right') {
+      // Inside prompt box: immediately to the left of model picker / mic buttons
+      if (trailingRect && trailingRect.width > 0) {
+        left = trailingRect.left - width - 8;
+        top = trailingRect.top + (trailingRect.height - height) / 2;
+      } else {
+        left = rect.right - width - 48;
+        top = rect.top + (rect.height - height) / 2;
+      }
+    } else {
+      left = viewportWidth - width - 24;
+      top = viewportHeight - height - 24;
+    }
   }
 
   if (rect && position !== 'fixed-bottom-right') {
-    // Never let a stale measurement throw the pill into the middle of the
-    // conversation: stay within a small band around the box.
-    const band = position === 'above-left' ? 56 : 0;
-    top = clamp(top, rect.top - height - band, Math.max(rect.top - height - 6, rect.bottom - height + 2));
+    if (position === 'above-left') {
+      top = clamp(top, rect.top - height - 16, rect.top - height - 2);
+    } else {
+      top = clamp(top, rect.top + 2, rect.bottom - height - 2);
+    }
   }
 
   const maxLeft = Math.max(8, viewportWidth - width - 8);
