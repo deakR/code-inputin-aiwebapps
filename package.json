@@ -1,0 +1,46 @@
+{
+  "name": "gemini-code-input",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A real code editor (syntax highlighting + indentation) for the Gemini web app's prompt box.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:store": "node build.mjs --store --outdir=build",
+    "dev": "node build.mjs --watch",
+    "icons": "node tools/make-icons.mjs",
+    "fixture": "node tests/server.mjs",
+    "test": "playwright test",
+    "package": "node tools/package.mjs"
+  },
+  "dependencies": {
+    "codemirror": "^6.0.0",
+    "@codemirror/state": "^6.0.0",
+    "@codemirror/view": "^6.0.0",
+    "@codemirror/language": "^6.0.0",
+    "@codemirror/commands": "^6.0.0",
+    "@codemirror/search": "^6.0.0",
+    "@codemirror/autocomplete": "^6.0.0",
+    "@codemirror/lang-python": "^6.0.0",
+    "@codemirror/lang-javascript": "^6.0.0",
+    "@codemirror/lang-java": "^6.0.0",
+    "@codemirror/lang-cpp": "^6.0.0",
+    "@codemirror/lang-go": "^6.0.0",
+    "@codemirror/lang-rust": "^6.0.0",
+    "@codemirror/lang-php": "^6.0.0",
+    "@codemirror/lang-html": "^6.0.0",
+    "@codemirror/lang-css": "^6.0.0",
+    "@codemirror/lang-json": "^6.0.0",
+    "@codemirror/lang-xml": "^6.0.0",
+    "@codemirror/lang-sql": "^6.0.0",
+    "@codemirror/lang-markdown": "^6.0.0",
+    "@codemirror/legacy-modes": "^6.0.0",
+    "@codemirror/theme-one-dark": "^6.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.4.0",
+    "@types/chrome": "*",
+    "@playwright/test": "^1.45.0"
+  }
+}

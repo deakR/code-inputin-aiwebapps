@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Gemini mock — strict CSP fixture</title>
+    <!--
+      The same fixture under a Google-like policy: no inline scripts or styles,
+      and Trusted Types enforcement for scripts (innerHTML assignment throws).
+      This is the environment the extension must survive.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'none'; require-trusted-types-for 'script'; trusted-types angular angular#bundler"
+    />
+    <link rel="stylesheet" href="gemini-mock.css" />
+  </head>
+  <body>
+    <main id="conversation">
+      <model-response>
+        <div class="response-content">
+          <p>Here you go:</p>
+          <pre><code>def add(a, b):
+    return a + b</code></pre>
+        </div>
+      </model-response>
+    </main>
+
+    <div id="input-area">
+      <div class="decoy">
+        <rich-textarea>
+          <div
+            class="ql-editor"
+            contenteditable="true"
+            role="textbox"
+            aria-label="Enter a prompt here"
+          ></div>
+        </rich-textarea>
+      </div>
+
+      <div class="input-row">
+        <rich-textarea>
+          <div
+            class="ql-editor ql-blank"
+            id="prompt-editor"
+            contenteditable="true"
+            role="textbox"
+            aria-label="Enter a prompt here"
+            data-placeholder="Ask Gemini"
+            spellcheck="false"
+          ><p><br /></p></div>
+        </rich-textarea>
+        <button class="attach" aria-label="Add files">+</button>
+        <button class="send-button" aria-label="Send message" disabled>➤</button>
+      </div>
+    </div>
+
+    <script src="gemini-mock.js"></script>
+  </body>
+</html>

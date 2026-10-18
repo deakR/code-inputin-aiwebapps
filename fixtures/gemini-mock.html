@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Gemini mock — prompt box fixture</title>
+    <link rel="stylesheet" href="gemini-mock.css" />
+  </head>
+  <body>
+    <main id="conversation">
+      <model-response>
+        <div class="response-content">
+          <p>Here you go:</p>
+          <pre><code>def add(a, b):
+    return a + b</code></pre>
+        </div>
+      </model-response>
+    </main>
+
+    <div id="input-area">
+      <!-- Gemini keeps hidden rich-textarea instances around; the extension
+           must skip this one and pick the visible box below. -->
+      <div class="decoy">
+        <rich-textarea>
+          <div
+            class="ql-editor"
+            contenteditable="true"
+            role="textbox"
+            aria-label="Enter a prompt here"
+          ></div>
+        </rich-textarea>
+      </div>
+
+      <!-- The rounded input box, laid out like the real one: a grid holding the
+           text row and the action buttons, with the box itself centring text
+           (which the docked editor has to reset). -->
+      <div class="text-input-field">
+        <div class="single-line-format">
+          <div class="text-input-field-main-area">
+            <div class="text-input-field_textarea-inner">
+              <rich-textarea class="text-input-field_textarea ql-container ql-bubble">
+                <div
+                  class="ql-editor ql-blank"
+                  id="prompt-editor"
+                  contenteditable="true"
+                  role="textbox"
+                  aria-label="Enter a prompt here"
+                  data-placeholder="Ask Gemini"
+                  spellcheck="false"
+                ><p><br /></p></div>
+                <div class="ql-clipboard" contenteditable="true" aria-hidden="true"></div>
+              </rich-textarea>
+            </div>
+          </div>
+        </div>
+        <div class="leading-actions-wrapper">
+          <button class="attach" aria-label="Add files">+</button>
+        </div>
+        <div class="trailing-actions-wrapper">
+          <button class="send-button" aria-label="Send message" disabled>➤</button>
+        </div>
+        <!-- Gemini's own expand/collapse control, which appears in the box's
+             action row once the composer is expanded — right where our close
+             button used to land. -->
+        <div class="input-buttons-wrapper-top">
+          <button class="collapse-button" aria-label="Collapse the prompt box">⤢</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="gemini-mock.js"></script>
+  </body>
+</html>

@@ -1,0 +1,263 @@
+/* A Gemini-ish skin for the test fixtures. */
+:root {
+  color-scheme: light;
+}
+
+/* The hidden decoy prompt box. It must be hidden by a *rule*, not an inline
+   style attribute: the strict-CSP fixture blocks those, which would make the
+   decoy visible and defeat the point of having it. */
+.decoy {
+  display: none;
+}
+
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #1f1f1f;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+#conversation {
+  flex: 1 1 auto;
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.user-query {
+  align-self: flex-end;
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: #f0f4f9;
+  white-space: pre-wrap;
+  font-family: inherit;
+}
+
+.user-query p {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+
+model-response {
+  display: block;
+  align-self: flex-start;
+  max-width: 92%;
+}
+
+.response-content pre {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f6f8fc;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+
+#input-area {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 12px 16px 28px;
+}
+
+/*
+ * The simple prompt-box shape the strict-CSP fixture uses. There is no
+ * `.text-input-field` box around it, so the panel cannot dock here and falls
+ * back to the floating overlay — which is exactly what that fixture is for.
+ */
+.input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid #dadce0;
+  border-radius: 26px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.15);
+}
+
+.input-row rich-textarea {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/*
+ * The rounded box. Like the real one it is a grid: the text row takes the full
+ * first row and the action buttons sit underneath, which is the arrangement the
+ * docked editor slots into (and the arrangement Gemini itself uses once a prompt
+ * runs to several lines). `text-align: center` is Gemini's, and is why the panel
+ * has to set its own alignment.
+ */
+.text-input-field {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid #dadce0;
+  border-radius: 26px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.15);
+  text-align: center;
+  overflow: hidden;
+}
+
+.single-line-format {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+.leading-actions-wrapper {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.trailing-actions-wrapper {
+  grid-column: 3;
+  grid-row: 2;
+  justify-self: end;
+}
+
+/* The expanded-composer control, in the action row like the real one. */
+.input-buttons-wrapper-top {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  align-self: start;
+}
+
+.collapse-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #444746;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.collapse-button:hover {
+  background: #f0f4f9;
+}
+
+.text-input-field-main-area,
+.text-input-field_textarea-inner,
+rich-textarea {
+  display: block;
+  min-width: 0;
+}
+
+.ql-editor {
+  min-height: 24px;
+  max-height: 220px;
+  overflow-y: auto;
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 2px 0;
+}
+
+.ql-editor.ql-blank::before {
+  content: attr(data-placeholder);
+  color: #80868b;
+  pointer-events: none;
+  display: block;
+  position: absolute;
+}
+
+.ql-editor:focus {
+  outline: none;
+}
+
+.attach,
+.send-button {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  background: transparent;
+  color: #444746;
+}
+
+.attach:hover {
+  background: #f0f4f9;
+}
+
+.send-button {
+  background: #1a73e8;
+  color: #ffffff;
+}
+
+.send-button:disabled {
+  background: #e8eaed;
+  color: #9aa0a6;
+  cursor: default;
+}
+
+#leak-report {
+  max-width: 760px;
+  margin: 0 auto 12px;
+  padding: 0 16px;
+  font-size: 12px;
+  color: #5f6368;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+  body {
+    color: #e8eaed;
+    background: #131314;
+  }
+  .text-input-field {
+    background: #1e1f20;
+    border-color: #3c4043;
+  }
+  .attach,
+  .collapse-button {
+    color: #c4c7c5;
+  }
+  .attach:hover,
+  .collapse-button:hover {
+    background: #282a2c;
+  }
+  .user-query {
+    background: #282a2c;
+    color: #e8eaed;
+  }
+  .response-content pre {
+    background: #1e1f20;
+    color: #e8eaed;
+  }
+  .ql-editor.ql-blank::before {
+    color: #9aa0a6;
+  }
+}
