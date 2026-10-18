@@ -189,7 +189,7 @@ function applyHostStyles(node: HTMLElement, mode: 'overlay' | 'docked'): void {
 function pageUiFont(): string | null {
   try {
     const family = getComputedStyle(document.body).fontFamily;
-    if (family && !family.includes('Times New Roman') && !family.includes('serif')) {
+    if (family && !family.includes('Times New Roman') && !/(^|[^a-z])serif\b/i.test(family)) {
       return family;
     }
   } catch {
@@ -650,13 +650,19 @@ function parseColor(value: string): [number, number, number, number] | null {
 }
 
 function isPageDark(): boolean {
-  for (const node of [document.body, document.documentElement]) {
+  const input = match?.element;
+  const box = input ? findComposerBox(input) ?? findInputContainer(input) : null;
+  for (const node of [box, document.body, document.documentElement]) {
     if (!node) continue;
     const color = parseColor(getComputedStyle(node).backgroundColor);
     if (!color || color[3] < 0.5) continue;
     const luminance = (0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2]) / 255;
     return luminance < 0.5;
   }
+  const root = document.documentElement;
+  const body = document.body;
+  if (root?.classList.contains('dark-theme') || body?.classList.contains('dark-theme')) return true;
+  if (root?.getAttribute('data-theme') === 'dark' || body?.getAttribute('data-theme') === 'dark') return true;
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 

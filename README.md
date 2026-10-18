@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://github.com/deakR/code-inputin-aiwebapps/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/manifest-v3-blueviolet.svg" alt="Manifest V3" />
-  <img src="https://img.shields.io/badge/tests-25%20passed-success.svg" alt="Playwright Tests" />
+  <img src="https://img.shields.io/badge/tests-27%20passed-success.svg" alt="Playwright Tests" />
   <img src="https://img.shields.io/badge/node-20%2B-brightgreen.svg" alt="Node 20+" />
   <img src="https://img.shields.io/badge/browsers-Chrome%20%7C%20Edge%20%7C%20Firefox%20%7C%20Brave%20%7C%20Arc-orange.svg" alt="Browser Support" />
 </p>
@@ -150,7 +150,7 @@ This compiles TypeScript source files and bundles CodeMirror into the `dist/` di
 The extension includes full integration tests driven by [Playwright](https://playwright.dev/):
 
 ```bash
-# Run 25 automated integration tests against Gemini mock fixtures
+# Run 27 automated integration tests against Gemini mock fixtures
 npm test
 ```
 

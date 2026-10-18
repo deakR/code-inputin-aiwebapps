@@ -426,3 +426,29 @@ test('escape dismisses the completion popup before the editor', async ({ page })
   await page.waitForTimeout(300);
   expect(await visibleEditorOverlays(page)).toBe(0);
 });
+
+test('docked panel controls and dropdown options match Gemini dark theme styling', async ({ page }) => {
+  await page.goto(`${FIXTURES}/gemini-mock.html`);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await openEditor(page);
+
+  const panelLocator = panel(page);
+  await expect(panelLocator).toHaveClass(/gci-dark/);
+
+  const selectColor = await page.locator('.gci-select').evaluate((el) => {
+    return getComputedStyle(el).colorScheme;
+  });
+  expect(selectColor).toBe('dark');
+
+  const optionColor = await page.locator('.gci-select option').first().evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { bg: s.backgroundColor, color: s.color };
+  });
+  expect(optionColor.bg).toBe('rgb(31, 31, 31)');
+  expect(optionColor.color).toBe('rgb(232, 234, 237)');
+
+  const uiFont = await panelLocator.evaluate((el) => {
+    return getComputedStyle(el).fontFamily;
+  });
+  expect(uiFont.toLowerCase()).toContain('google sans');
+});

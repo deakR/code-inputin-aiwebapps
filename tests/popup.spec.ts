@@ -81,3 +81,18 @@ test('says so when there is no Gemini tab to talk to', async ({ context }) => {
   await expect(popup.locator('#dot')).toHaveClass(/off/);
   await expect(popup.locator('#open')).toBeHidden();
 });
+
+test('select dropdown options have readable contrast in dark mode', async ({ context }) => {
+  const popup = await openPopup(context);
+  await popup.emulateMedia({ colorScheme: 'dark' });
+  const selectScheme = await popup.locator('#language').evaluate((el) => {
+    return getComputedStyle(el).colorScheme;
+  });
+  expect(selectScheme).toBe('dark');
+  const optionStyle = await popup.locator('#language option').first().evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { bg: s.backgroundColor, color: s.color };
+  });
+  expect(optionStyle.bg).toBe('rgb(31, 31, 31)');
+  expect(optionStyle.color).toBe('rgb(232, 234, 237)');
+});

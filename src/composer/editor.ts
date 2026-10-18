@@ -52,7 +52,7 @@ import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
 import { getLanguage } from './languages';
 
 const MONO_STACK =
-  "'Google Sans Mono', 'Roboto Mono', Consolas, 'Courier New', ui-monospace, SFMono-Regular, monospace";
+  "'Google Sans Mono', 'Roboto Mono', Consolas, 'Courier New', monospace";
 
 const LIGHT = {
   background: '#ffffff',
@@ -83,6 +83,7 @@ function themeExtension(dark: boolean): Extension {
       '&': {
         height: '100%',
         fontSize: '13px',
+        fontFamily: MONO_STACK,
         color: palette.foreground,
         backgroundColor: palette.background,
       },

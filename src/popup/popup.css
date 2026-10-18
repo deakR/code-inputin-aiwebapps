@@ -24,15 +24,6 @@
     --ok: #81c995;
     --warn: #f28b82;
   }
-
-  select {
-    color-scheme: dark;
-  }
-
-  select option {
-    background-color: #1f1f1f;
-    color: #e8eaed;
-  }
 }
 
 * {
@@ -138,6 +129,17 @@ select {
 select option {
   background-color: #ffffff;
   color: #1f1f1f;
+}
+
+@media (prefers-color-scheme: dark) {
+  select {
+    color-scheme: dark;
+  }
+
+  select option {
+    background-color: #1f1f1f;
+    color: #e8eaed;
+  }
 }
 
 input[type='range'] {
