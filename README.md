@@ -1,7 +1,7 @@
 # Code Input in AI Web Apps
 
 <p align="center">
-  <img src="release/gemini-code-input-1.0.0-store-icon-300.png" width="96" height="96" alt="Code Input in AI Web Apps logo" />
+  <img src="docs/images/logo.png" width="120" height="120" alt="Code Input in AI Web Apps logo" style="border-radius: 24px;" />
 </p>
 
 <p align="center">
