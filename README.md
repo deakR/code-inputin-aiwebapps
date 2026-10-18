@@ -11,10 +11,10 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/deakR/code-inputin-aiwebapps/releases/latest"><img src="https://img.shields.io/badge/release-v1.0.0-blue.svg" alt="Latest Release: v1.0.0" /></a>
   <a href="https://github.com/deakR/code-inputin-aiwebapps/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/manifest-v3-blueviolet.svg" alt="Manifest V3" />
-  <img src="https://img.shields.io/badge/tests-27%20passed-success.svg" alt="Playwright Tests" />
-  <img src="https://img.shields.io/badge/node-20%2B-brightgreen.svg" alt="Node 20+" />
+  <img src="https://img.shields.io/badge/tests-28%20passed-success.svg" alt="Playwright Tests" />
   <img src="https://img.shields.io/badge/browsers-Chrome%20%7C%20Edge%20%7C%20Firefox%20%7C%20Brave%20%7C%20Arc-orange.svg" alt="Browser Support" />
 </p>
 
@@ -81,11 +81,36 @@ Customize default language, fence wrappers, line wrapping, launcher button posit
 
 ## Installation
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) v20 or newer
-- `npm`
+### 📦 Quick Install (Download & Unpack)
 
-### Building from Source
+**No Node.js or build tools required.**
+
+1. **Download the pre-packaged zip**:
+   👉 **[Download gemini-code-input-1.0.0.zip](https://github.com/deakR/code-inputin-aiwebapps/releases/latest/download/gemini-code-input-1.0.0.zip)** (or get it from [Releases](https://github.com/deakR/code-inputin-aiwebapps/releases)).
+2. **Unzip** `gemini-code-input-1.0.0.zip` into a folder on your computer.
+3. **Load unpacked into your browser**:
+
+#### Chromium (Chrome, Edge, Brave, Arc, Opera)
+1. Navigate to your browser's extension page:
+   - **Chrome**: `chrome://extensions`
+   - **Edge**: `edge://extensions`
+   - **Brave**: `brave://extensions`
+   - **Arc**: `arc://extensions`
+2. Turn on **Developer mode** (toggle in the top-right corner).
+3. Click **Load unpacked** and select the unzipped folder.
+
+#### Mozilla Firefox
+1. Navigate to `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on…**.
+3. Select `manifest.json` inside the unzipped folder.
+
+4. Open [gemini.google.com](https://gemini.google.com) and start coding!
+
+---
+
+### Building from Source (Developers)
+
+If you wish to build or modify the extension from source:
 
 ```bash
 # Clone the repository
@@ -95,29 +120,11 @@ cd code-inputin-aiwebapps
 # Install dependencies
 npm install
 
-# Build extension
+# Build extension into dist/
 npm run build
 ```
 
-This compiles TypeScript source files and bundles CodeMirror into the `dist/` directory.
-
-### Loading in Chromium (Chrome, Edge, Brave, Arc)
-
-1. Open your browser's extension management page:
-   - **Chrome**: `chrome://extensions`
-   - **Edge**: `edge://extensions`
-   - **Brave**: `brave://extensions`
-   - **Arc**: `arc://extensions`
-2. Enable **Developer mode** (toggle in the top-right or sidebar).
-3. Click **Load unpacked**.
-4. Select the `dist/` directory inside this repository.
-5. Open [gemini.google.com](https://gemini.google.com) and start coding!
-
-### Loading in Firefox
-
-1. Navigate to `about:debugging#/runtime/this-firefox`.
-2. Click **Load Temporary Add-on…**.
-3. Select `dist/manifest.json`.
+Then load the `dist/` directory using the **Load unpacked** steps above.
 
 ---
 
