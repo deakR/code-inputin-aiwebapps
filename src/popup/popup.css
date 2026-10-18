@@ -7,8 +7,6 @@
   --accent: #1a73e8;
   --accent-fg: #ffffff;
   --hover: rgba(26, 115, 232, 0.08);
-  --ok: #188038;
-  --warn: #b3261e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -21,8 +19,6 @@
     --accent: #8ab4f8;
     --accent-fg: #202124;
     --hover: rgba(138, 180, 248, 0.14);
-    --ok: #81c995;
-    --warn: #f28b82;
   }
 }
 
@@ -31,9 +27,9 @@
 }
 
 body {
-  width: 340px;
+  width: 320px;
   margin: 0;
-  padding: 14px;
+  padding: 14px 16px;
   font: 13px/1.45 'Google Sans', 'Google Sans Text', Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   color: var(--fg);
   background: var(--bg);
@@ -46,41 +42,18 @@ header h1 {
 }
 
 .sub {
-  margin: 2px 0 12px;
+  margin: 2px 0 10px;
   color: var(--muted);
   font-size: 11.5px;
 }
 
-.status {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 12px;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--muted);
-  flex: 0 0 auto;
-}
-
-.dot.on {
-  background: var(--ok);
-}
-
-.dot.off {
-  background: var(--warn);
-}
-
 .group {
-  margin-top: 12px;
+  margin-top: 8px;
   border-top: 1px solid var(--border);
   padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .row {
@@ -96,21 +69,7 @@ header h1 {
   font-size: 12px;
 }
 
-.row em {
-  font-style: normal;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.hint {
-  margin: -2px 2px 2px;
-  font-size: 11px;
-  line-height: 1.45;
-  color: var(--muted);
-}
-
-select,
-input[type='range'] {
+select {
   font: inherit;
   font-family: inherit;
   font-size: 12px;
@@ -119,10 +78,7 @@ input[type='range'] {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 4px 6px;
-  max-width: 165px;
-}
-
-select {
+  max-width: 175px;
   color-scheme: light;
 }
 
@@ -142,68 +98,24 @@ select option {
   }
 }
 
-input[type='range'] {
-  padding: 0;
-  border: none;
-  width: 165px;
-  accent-color: var(--accent);
-}
-
 input[type='checkbox'] {
   accent-color: var(--accent);
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   margin: 0;
-}
-
-button.primary {
-  width: 100%;
-  margin-top: 10px;
-  padding: 8px 12px;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--accent-fg);
-  background: var(--accent);
-  border: none;
-  border-radius: 999px;
   cursor: pointer;
-}
-
-button.primary:hover {
-  filter: brightness(1.06);
 }
 
 footer {
   margin-top: 12px;
   border-top: 1px solid var(--border);
   padding-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.version {
+  margin: 0;
   color: var(--muted);
   font-size: 11px;
-}
-
-.kbd {
-  margin: 0 0 6px;
-}
-
-kbd {
-  font-family: 'Google Sans Mono', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  font-size: 10.5px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0 3px;
-}
-
-.diag {
-  margin: 0;
-  font-family: 'Google Sans Mono', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  font-size: 10.5px;
-  word-break: break-word;
-  color: var(--muted);
-}
-
-/* Which build is loaded — the first thing support asks for. */
-.version {
-  margin: 6px 0 0;
-  color: var(--muted);
 }

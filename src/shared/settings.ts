@@ -16,6 +16,8 @@ export interface Settings {
   /** Show the floating launcher pill next to the prompt box. */
   showLauncher: boolean;
   launcherPosition: LauncherPosition;
+  /** Shortcut combo to toggle editor, e.g. 'Ctrl+Shift+E'. */
+  shortcut: string;
   /**
    * Editor height in CSS pixels. Docked in the prompt box the editor grows with
    * the code (about four lines when it is nearly empty) and this is the cap at
@@ -32,9 +34,44 @@ export const DEFAULT_SETTINGS: Settings = {
   wrapLines: false,
   showLauncher: true,
   launcherPosition: 'above-left',
+  shortcut: 'Ctrl+Shift+E',
   panelHeight: 340,
   panelWidth: 760,
 };
+
+export interface KeyMatchTarget {
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+  key?: string;
+  code?: string;
+}
+
+/** Matches a keyboard event against a shortcut string like 'Ctrl+Shift+E' or 'Alt+Shift+C'. */
+export function matchesShortcut(event: KeyMatchTarget, shortcut: string): boolean {
+  if (!shortcut) return false;
+  const parts = shortcut.split('+').map((s) => s.trim().toLowerCase());
+  const needCtrl = parts.some((p) => p === 'ctrl' || p === 'control' || p === 'cmd' || p === 'command' || p === 'mod');
+  const needAlt = parts.some((p) => p === 'alt' || p === 'option');
+  const needShift = parts.some((p) => p === 'shift');
+  const keyPart = parts.find((p) => !['ctrl', 'control', 'cmd', 'command', 'mod', 'alt', 'option', 'shift'].includes(p));
+
+  const hasCtrl = Boolean(event.ctrlKey || event.metaKey);
+  if (needCtrl !== hasCtrl) return false;
+  if (needAlt !== Boolean(event.altKey)) return false;
+  if (needShift !== Boolean(event.shiftKey)) return false;
+
+  if (!keyPart) return false;
+
+  if (keyPart === 'space') {
+    return event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar';
+  }
+
+  const keyLower = event.key?.toLowerCase();
+  const codeLower = event.code?.toLowerCase();
+  return keyLower === keyPart || codeLower === `key${keyPart}` || codeLower === keyPart;
+}
 
 const STORAGE_KEY = 'settings';
 

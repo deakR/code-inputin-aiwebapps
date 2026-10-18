@@ -12,28 +12,13 @@
       <p class="sub">A real code editor for Gemini's prompt box.</p>
     </header>
 
-    <section class="status" aria-live="polite">
-      <span class="dot" id="dot"></span>
-      <span id="status">Checking this tab…</span>
-    </section>
-
-    <button id="open" class="primary" hidden>Open the code editor</button>
-
     <section class="group">
       <label class="row">
         <span>Default language</span>
         <select id="language"></select>
       </label>
       <label class="row">
-        <span>Wrap code in a fence</span>
-        <input type="checkbox" id="fence" />
-      </label>
-      <label class="row">
-        <span>Wrap long lines</span>
-        <input type="checkbox" id="wrap" />
-      </label>
-      <label class="row">
-        <span>Floating button</span>
+        <span>Show floating button</span>
         <input type="checkbox" id="launcher" />
       </label>
       <label class="row">
@@ -46,18 +31,20 @@
         </select>
       </label>
       <label class="row">
-        <span>Editor height <em id="height-value">340 px</em></span>
-        <input type="range" id="height" min="180" max="760" step="20" />
+        <span>Shortcut</span>
+        <select id="shortcut">
+          <option value="Ctrl+Shift+E">Ctrl+Shift+E</option>
+          <option value="Ctrl+Shift+K">Ctrl+Shift+K</option>
+          <option value="Ctrl+Shift+C">Ctrl+Shift+C</option>
+          <option value="Ctrl+Shift+Space">Ctrl+Shift+Space</option>
+          <option value="Alt+Shift+C">Alt+Shift+C</option>
+          <option value="Alt+Shift+E">Alt+Shift+E</option>
+          <option value="Alt+Shift+K">Alt+Shift+K</option>
+        </select>
       </label>
-      <p class="hint">In the prompt box the editor grows with your code; this is
-        the height at which it starts scrolling (and the size of the floating panel).</p>
     </section>
 
     <footer>
-      <p class="kbd">
-        <kbd id="shortcut">Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>E</kbd> toggles the editor
-      </p>
-      <p class="diag" id="diag"></p>
       <p class="version" id="version"></p>
     </footer>
 

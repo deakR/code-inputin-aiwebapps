@@ -16,6 +16,7 @@ import { ext } from '../shared/ext';
 import {
   DEFAULT_SETTINGS,
   loadSettings,
+  matchesShortcut,
   onSettingsChanged,
   saveSettings,
   type Settings,
@@ -1035,11 +1036,8 @@ function observePage(): void {
 
 function onHotkey(event: KeyboardEvent): void {
   if (event.defaultPrevented || event.repeat) return;
-  const isToggle =
-    (event.ctrlKey || event.metaKey) &&
-    event.shiftKey &&
-    (event.code === 'KeyE' || event.key?.toLowerCase() === 'e');
-  if (!isToggle) return;
+  const shortcut = settings.shortcut || DEFAULT_SETTINGS.shortcut;
+  if (!matchesShortcut(event, shortcut)) return;
   event.preventDefault();
   event.stopPropagation();
   togglePanel();

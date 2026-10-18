@@ -145,10 +145,22 @@ try {
 
   if (extId) {
     const popupPage = await context.newPage();
-    await popupPage.setViewportSize({ width: 370, height: 500 });
     await popupPage.goto(`chrome-extension://${extId}/popup/popup.html`);
     await popupPage.waitForTimeout(500);
-    await popupPage.screenshot({ path: path.join(docsImages, 'extension-popup.png') });
+    const bodyBox = await popupPage.locator('body').boundingBox();
+    if (bodyBox) {
+      await popupPage.screenshot({
+        path: path.join(docsImages, 'extension-popup.png'),
+        clip: {
+          x: Math.round(bodyBox.x),
+          y: Math.round(bodyBox.y),
+          width: Math.round(bodyBox.width),
+          height: Math.round(bodyBox.height),
+        },
+      });
+    } else {
+      await popupPage.screenshot({ path: path.join(docsImages, 'extension-popup.png') });
+    }
     console.log('[screenshot] Saved extension-popup.png');
     await popupPage.close();
   }

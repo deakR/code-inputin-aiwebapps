@@ -1,98 +1,137 @@
 /**
- * The popup is the extension's control panel: it reports whether it can reach
- * a Gemini tab and edits the settings the content script reacts to.
+ * The popup is the extension's control panel: it lets users configure
+ * language, floating button visibility, position, and shortcut.
  */
 import { LANGUAGE_META } from '../src/composer/language-meta';
-import { test, expect, FIXTURE_PAGE, openPopup, openEditor, cmContent, panel, launcher } from './harness';
+import { matchesShortcut } from '../src/shared/settings';
+import { test, expect, FIXTURE_PAGE, openPopup, panel, launcher } from './harness';
 
-test('reports the Gemini tab as ready', async ({ context, page }) => {
+test('populates settings from stored configuration', async ({ context, page }) => {
   await page.goto(FIXTURE_PAGE);
   await expect(launcher(page)).toBeVisible();
 
   const popup = await openPopup(context);
-  await expect(popup.locator('#status')).toContainText('Prompt box found');
-  await expect(popup.locator('#dot')).toHaveClass(/on/);
-  await expect(popup.locator('#diag')).toContainText('matched:');
-  // An empty prompt box means a disabled send button, and the popup says so.
-  await expect(popup.locator('#diag')).toContainText('send: disabled: Send message');
-
-  // With text in the box it becomes a usable send button.
-  await page.evaluate(() => {
-    const box = document.getElementById('prompt-editor');
-    if (!box) return;
-    box.textContent = 'hello';
-    box.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-  await popup.reload();
-  await expect(popup.locator('#diag')).toContainText('send: Send message');
 
   // The settings form is populated from the stored settings.
   const language = popup.locator('#language');
   expect(await language.evaluate((el: HTMLSelectElement) => el.options.length)).toBe(LANGUAGE_META.length);
   await expect(language).toHaveValue('python');
-  await expect(popup.locator('#fence')).toBeChecked();
+
   await expect(popup.locator('#launcher')).toBeChecked();
-  await expect(popup.locator('#height-value')).toHaveText('340 px');
+  await expect(popup.locator('#position')).toHaveValue('above-left');
+  await expect(popup.locator('#shortcut')).toHaveValue('Ctrl+Shift+E');
+  await expect(popup.locator('#version')).toContainText('v1.0.0');
 });
 
-test('opens the code editor in the Gemini tab', async ({ context, page }) => {
+test('changing floating button setting toggles launcher visibility', async ({ context, page }) => {
   await page.goto(FIXTURE_PAGE);
   await expect(launcher(page)).toBeVisible();
 
   const popup = await openPopup(context);
-  const open = popup.locator('#open');
-  await expect(open).toBeVisible();
-  await expect(open).toHaveText('Open the code editor');
-  await open.click();
+  const launcherCheckbox = popup.locator('#launcher');
+  await expect(launcherCheckbox).toBeChecked();
 
-  await expect(panel(page)).toBeVisible();
-  await expect(cmContent(page)).toBeVisible();
-});
+  // Turning off floating button hides the launcher immediately
+  await launcherCheckbox.uncheck();
+  await expect(launcher(page)).toBeHidden();
 
-test('settings changed in the popup reach the editor immediately', async ({ context, page }) => {
-  await page.goto(FIXTURE_PAGE);
-  await expect(launcher(page)).toBeVisible();
-
-  const popup = await openPopup(context);
-  const wrap = popup.locator('#wrap');
-  await expect(wrap).not.toBeChecked();
-
-  // Open the panel from the page itself: the popup's own button closes the
-  // popup, and this test keeps talking to it afterwards.
-  await openEditor(page);
-  const wrapped = () => cmContent(page).evaluate((el) => el.classList.contains('cm-lineWrapping'));
-  expect(await wrapped()).toBe(false);
-
-  // "Wrap long lines" is a CodeMirror compartment: flipping it in the popup
-  // must reconfigure the live editor without reopening it.
-  await wrap.click();
-  await expect.poll(wrapped).toBe(true);
-
-  // …and it survives a reload of the popup (it is actually persisted).
+  // Reloading popup preserves the unchecked state
   await popup.reload();
-  await expect(popup.locator('#wrap')).toBeChecked();
-  // The popup also reports where the editor ended up: docked in the box here.
-  await expect(popup.locator('#diag')).toContainText('docked in the prompt box');
+  await expect(popup.locator('#launcher')).not.toBeChecked();
+
+  // Turning it back on restores the launcher
+  await popup.locator('#launcher').check();
+  await expect(launcher(page)).toBeVisible();
 });
 
-test('says so when there is no Gemini tab to talk to', async ({ context }) => {
+test('changing button position moves the launcher', async ({ context, page }) => {
+  await page.goto(FIXTURE_PAGE);
+  await expect(launcher(page)).toBeVisible();
+  const initialBox = await launcher(page).boundingBox();
+  expect(initialBox).not.toBeNull();
+
   const popup = await openPopup(context);
-  await expect(popup.locator('#status')).toContainText('No Gemini tab found');
-  await expect(popup.locator('#dot')).toHaveClass(/off/);
-  await expect(popup.locator('#open')).toBeHidden();
+  const positionSelect = popup.locator('#position');
+  await expect(positionSelect).toHaveValue('above-left');
+
+  // Change to fixed bottom right
+  await positionSelect.selectOption('fixed-bottom-right');
+
+  // Launcher should move towards bottom right of viewport
+  await expect.poll(async () => {
+    const box = await launcher(page).boundingBox();
+    return box ? box.x : 0;
+  }).toBeGreaterThan(initialBox!.x + 200);
+
+  // Position setting is persisted
+  await popup.reload();
+  await expect(popup.locator('#position')).toHaveValue('fixed-bottom-right');
+});
+
+test('changing shortcut setting configures the toggle hotkey', async ({ context, page }) => {
+  await page.goto(FIXTURE_PAGE);
+  await expect(launcher(page)).toBeVisible();
+
+  const popup = await openPopup(context);
+  const shortcutSelect = popup.locator('#shortcut');
+  await expect(shortcutSelect).toHaveValue('Ctrl+Shift+E');
+
+  // Change shortcut to Ctrl+Shift+K
+  await shortcutSelect.selectOption('Ctrl+Shift+K');
+
+  // Verify persistence
+  await popup.reload();
+  await expect(popup.locator('#shortcut')).toHaveValue('Ctrl+Shift+K');
+
+  // Bring focus back to the page
+  await page.bringToFront();
+  await page.locator('#prompt-editor').click();
+
+  // Old shortcut (Ctrl+Shift+E) no longer toggles the panel
+  await page.keyboard.press('Control+Shift+KeyE');
+  await expect(panel(page)).toBeHidden();
+
+  // New shortcut (Ctrl+Shift+K) opens the panel
+  await page.keyboard.press('Control+Shift+KeyK');
+  await expect(panel(page)).toBeVisible();
+
+  // Pressing again closes it
+  await page.keyboard.press('Control+Shift+KeyK');
+  await expect(panel(page)).toBeHidden();
 });
 
 test('select dropdown options have readable contrast in dark mode', async ({ context }) => {
   const popup = await openPopup(context);
   await popup.emulateMedia({ colorScheme: 'dark' });
-  const selectScheme = await popup.locator('#language').evaluate((el) => {
-    return getComputedStyle(el).colorScheme;
-  });
-  expect(selectScheme).toBe('dark');
-  const optionStyle = await popup.locator('#language option').first().evaluate((el) => {
-    const s = getComputedStyle(el);
-    return { bg: s.backgroundColor, color: s.color };
-  });
-  expect(optionStyle.bg).toBe('rgb(31, 31, 31)');
-  expect(optionStyle.color).toBe('rgb(232, 234, 237)');
+
+  for (const id of ['#language', '#position', '#shortcut']) {
+    const selectScheme = await popup.locator(id).evaluate((el) => {
+      return getComputedStyle(el).colorScheme;
+    });
+    expect(selectScheme).toBe('dark');
+
+    const optionStyle = await popup.locator(`${id} option`).first().evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { bg: s.backgroundColor, color: s.color };
+    });
+    expect(optionStyle.bg).toBe('rgb(31, 31, 31)');
+    expect(optionStyle.color).toBe('rgb(232, 234, 237)');
+  }
+});
+
+test('matchesShortcut handles key combos and modifiers accurately', () => {
+  // Ctrl+Shift+E
+  expect(matchesShortcut({ ctrlKey: true, metaKey: false, altKey: false, shiftKey: true, key: 'e' }, 'Ctrl+Shift+E')).toBe(true);
+  expect(matchesShortcut({ ctrlKey: false, metaKey: true, altKey: false, shiftKey: true, key: 'E', code: 'KeyE' }, 'Ctrl+Shift+E')).toBe(true);
+  expect(matchesShortcut({ ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, key: 'e' }, 'Ctrl+Shift+E')).toBe(false);
+
+  // Alt+Shift+C
+  expect(matchesShortcut({ ctrlKey: false, metaKey: false, altKey: true, shiftKey: true, key: 'c', code: 'KeyC' }, 'Alt+Shift+C')).toBe(true);
+  expect(matchesShortcut({ ctrlKey: true, metaKey: false, altKey: true, shiftKey: true, key: 'c' }, 'Alt+Shift+C')).toBe(false);
+
+  // Space key
+  expect(matchesShortcut({ ctrlKey: true, metaKey: false, altKey: false, shiftKey: true, key: ' ', code: 'Space' }, 'Ctrl+Shift+Space')).toBe(true);
+
+  // Empty or invalid shortcut
+  expect(matchesShortcut({ ctrlKey: true, metaKey: false, altKey: false, shiftKey: true, key: 'e' }, '')).toBe(false);
 });
