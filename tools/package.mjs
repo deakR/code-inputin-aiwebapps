@@ -71,18 +71,22 @@ this package, and there is no \`eval\` or \`Function\` anywhere in the sources.
 `;
 
 function zip(fromDir, toFile) {
-  if (process.platform === 'win32') {
-    execFileSync(
-      'powershell',
-      [
-        '-NoProfile',
-        '-Command',
-        `Compress-Archive -Path '${path.join(fromDir, '*')}' -DestinationPath '${toFile}' -Force`,
-      ],
-      { stdio: 'inherit' },
-    );
-  } else {
-    execFileSync('zip', ['-q', '-r', toFile, '.'], { cwd: fromDir, stdio: 'inherit' });
+  try {
+    execFileSync('tar', ['-a', '-c', '-f', toFile, '-C', fromDir, '.'], { stdio: 'inherit' });
+  } catch {
+    if (process.platform === 'win32') {
+      execFileSync(
+        'powershell',
+        [
+          '-NoProfile',
+          '-Command',
+          `Compress-Archive -Path '${path.join(fromDir, '*')}' -DestinationPath '${toFile}' -Force`,
+        ],
+        { stdio: 'inherit' },
+      );
+    } else {
+      execFileSync('zip', ['-q', '-r', toFile, '.'], { cwd: fromDir, stdio: 'inherit' });
+    }
   }
 }
 

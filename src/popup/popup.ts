@@ -32,10 +32,11 @@ async function main(): Promise<void> {
   launcher.checked = settings.showLauncher;
   position.value = settings.launcherPosition;
 
-  // On macOS, display ⌘ instead of Ctrl in the dropdown options
+  // On macOS, display ⌘ and ⌥ instead of Ctrl and Alt in the dropdown options
   if (isMac()) {
     for (const option of shortcut.options) {
-      option.textContent = option.textContent?.replace('Ctrl', '⌘') ?? option.value;
+      option.textContent =
+        option.textContent?.replace('Ctrl', '⌘').replace('Alt', '⌥') ?? option.value;
     }
   }
 
@@ -44,7 +45,9 @@ async function main(): Promise<void> {
   if (!Array.from(shortcut.options).some((o) => o.value === activeShortcut)) {
     const option = document.createElement('option');
     option.value = activeShortcut;
-    option.textContent = isMac() ? activeShortcut.replace('Ctrl', '⌘') : activeShortcut;
+    option.textContent = isMac()
+      ? activeShortcut.replace('Ctrl', '⌘').replace('Alt', '⌥')
+      : activeShortcut;
     shortcut.appendChild(option);
   }
   shortcut.value = activeShortcut;

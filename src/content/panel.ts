@@ -256,7 +256,24 @@ function installEventBarrier(node: HTMLElement): void {
   for (const type of BARRIER_EVENTS) node.addEventListener(type, stop, false);
 }
 
-/* ── launcher ──────────────────────────────────────────────────────────── */
+function formatShortcutLabel(shortcut: string): string {
+  if (!shortcut) return '';
+  if (!IS_MAC) return shortcut;
+  return shortcut
+    .replace(/Ctrl|Control|Cmd|Command|Mod/gi, '⌘')
+    .replace(/Alt|Option/gi, '⌥')
+    .replace(/Shift/gi, '⇧')
+    .replace(/\+/g, '');
+}
+
+function updateLauncherTitle(): void {
+  if (!launcher) return;
+  const shortcut = settings.shortcut || DEFAULT_SETTINGS.shortcut;
+  const display = formatShortcutLabel(shortcut);
+  const label = display ? `Code editor (${display})` : 'Code editor';
+  launcher.title = label;
+  launcher.setAttribute('aria-label', label);
+}
 
 function buildLauncher(root: ShadowRoot): void {
   if (launcher) return;
@@ -264,9 +281,6 @@ function buildLauncher(root: ShadowRoot): void {
   button.type = 'button';
   // Icon-only chip: the wording lives in the tooltip and the accessible name, so
   // the pill stays a small square of pixels beside the prompt box.
-  const label = `Code editor (${TOGGLE_LABEL})`;
-  button.title = label;
-  button.setAttribute('aria-label', label);
   button.hidden = true;
   button.appendChild(svgIcon('M10 6 L4 12 L10 18', 'M14 6 L20 12 L14 18'));
   button.addEventListener('click', (event) => {
@@ -276,6 +290,7 @@ function buildLauncher(root: ShadowRoot): void {
   });
   root.appendChild(button);
   launcher = button;
+  updateLauncherTitle();
 }
 
 function updateLauncherVisibility(): void {
@@ -1130,6 +1145,7 @@ export function start(): void {
     const wrapChanged = next.wrapLines !== settings.wrapLines;
     settings = next;
     syncControls();
+    updateLauncherTitle();
     updateLauncherVisibility();
     if (wrapChanged) editor?.setWrap(settings.wrapLines);
     if (isOpen) layoutPanel();
@@ -1168,6 +1184,7 @@ export function start(): void {
     settings = loaded;
     currentLanguageId = loaded.language;
     syncControls();
+    updateLauncherTitle();
     updateLauncherVisibility();
     updateInsertState();
   });
