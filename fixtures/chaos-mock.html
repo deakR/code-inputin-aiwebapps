@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="gci-site" content="chatgpt" />
+    <title>Chaos mock — composer re-render fixture</title>
+    <link rel="stylesheet" href="site-mock.css" />
+  </head>
+  <body>
+    <button type="button" id="rebuild">Rebuild composer with different ids and classes</button>
+    <main id="conversation"></main>
+    <div id="composer">
+      <form class="composer-form">
+        <div
+          id="prompt-input"
+          class="editor"
+          contenteditable="true"
+          role="textbox"
+          aria-label="Message ChatGPT"
+          data-placeholder="Message ChatGPT"
+        ></div>
+        <div class="actions">
+          <button type="button" class="attach" aria-label="Attach files">+</button>
+          <span class="spacer"></span>
+          <button type="button" id="send-button" class="send" aria-label="Send prompt" disabled>➤</button>
+        </div>
+      </form>
+    </div>
+    <script>
+      (function () {
+        var conversation = document.getElementById('conversation');
+
+        function wire(form) {
+          var editor = form.querySelector('[contenteditable="true"], textarea');
+          var send = form.querySelector('button[aria-label*="Send" i], button[type="submit"]');
+          if (!editor || !send) return;
+
+          function text() {
+            return editor.tagName === 'TEXTAREA'
+              ? editor.value || ''
+              : (editor.innerText || '').replace(/\u00a0/g, ' ');
+          }
+          function refresh() {
+            send.disabled = text().trim().length === 0;
+          }
+          function sendMessage() {
+            var value = text().trim();
+            if (!value) return;
+            var wrapper = document.createElement('div');
+            wrapper.className = 'user-query';
+            wrapper.textContent = value;
+            conversation.appendChild(wrapper);
+            if (editor.tagName === 'TEXTAREA') editor.value = '';
+            else editor.textContent = '';
+            refresh();
+          }
+
+          editor.addEventListener('input', refresh);
+          editor.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              sendMessage();
+            }
+          });
+          send.addEventListener('click', sendMessage);
+          refresh();
+        }
+
+        document.getElementById('rebuild').addEventListener('click', function () {
+          var composer = document.getElementById('composer');
+          composer.textContent = '';
+          var form = document.createElement('form');
+          form.className = 'composer-form mystery-form';
+          var editor = document.createElement('div');
+          editor.className = 'editor mystery-editor';
+          editor.setAttribute('contenteditable', 'true');
+          editor.setAttribute('aria-label', 'Message ChatGPT');
+          editor.setAttribute('data-placeholder', 'Message ChatGPT');
+          var row = document.createElement('div');
+          row.className = 'mystery-row actions';
+          var attach = document.createElement('button');
+          attach.type = 'button';
+          attach.className = 'attach';
+          attach.setAttribute('aria-label', 'Attach files');
+          attach.textContent = '+';
+          var spacer = document.createElement('span');
+          spacer.className = 'spacer';
+          var send = document.createElement('button');
+          send.type = 'button';
+          send.className = 'mystery-send send';
+          send.setAttribute('aria-label', 'Send prompt');
+          send.textContent = '➤';
+          send.disabled = true;
+          row.appendChild(attach);
+          row.appendChild(spacer);
+          row.appendChild(send);
+          form.appendChild(editor);
+          form.appendChild(row);
+          composer.appendChild(form);
+          wire(form);
+          editor.focus();
+        });
+
+        wire(document.querySelector('#composer form'));
+      })();
+    </script>
+  </body>
+</html>

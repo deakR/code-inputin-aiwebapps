@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="gci-site" content="generic" />
+    <title>Picker repair fixture</title>
+    <link rel="stylesheet" href="site-mock.css" />
+  </head>
+  <body>
+    <!-- A decoy that wins the generic hint list. The picker must let the user
+         choose the real prompt box below, and the choice must survive reload. -->
+    <div
+      id="decoy"
+      class="decoy-editor"
+      contenteditable="true"
+      role="textbox"
+      aria-label="Search messages"
+    ></div>
+
+    <main id="conversation"></main>
+    <div id="composer">
+      <form class="composer-form">
+        <div
+          id="prompt-input"
+          class="editor"
+          contenteditable="true"
+          role="textbox"
+          aria-label="Type your message"
+          data-placeholder="Type your message"
+        ></div>
+        <div class="actions">
+          <button type="button" class="attach" aria-label="Attach files">+</button>
+          <span class="spacer"></span>
+          <button type="button" id="send-button" class="send" aria-label="Send" disabled>➤</button>
+        </div>
+      </form>
+    </div>
+    <script src="site-mock.js"></script>
+  </body>
+</html>

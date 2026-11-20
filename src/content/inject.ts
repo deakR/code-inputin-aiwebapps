@@ -1,14 +1,21 @@
 /**
- * Writing text into Gemini's prompt box.
+ * Writing text into an AI app's prompt box.
  *
- * The prompt box is a Quill-style contenteditable, so the text has to go in
+ * The prompt box is usually a rich-text editor, so the text has to go in
  * through a path the editor itself understands. We try a few strategies, in
  * order of how "native" they are, and after every attempt we read the box back
  * and check whether the payload actually landed. If an attempt changed the box
  * at all we stop there — a partial insert is better than a duplicated one.
  */
 
-import { findChatInput, findInputContainer, readInputText, type InputMatch } from './dom';
+import {
+  findChatInput,
+  findInputContainer,
+  findSendButton,
+  getActiveAdapter,
+  readInputText,
+  type InputMatch,
+} from './dom';
 
 export type InsertMethod = 'paste' | 'execCommand' | 'execCommand-lines' | 'dom';
 
@@ -19,6 +26,8 @@ export interface InsertResult {
   verified: boolean;
   reason?: string;
 }
+
+export { findInputContainer, findSendButton };
 
 /** Loose comparison text: unify line endings, drop zero-width characters, strip trailing spaces. */
 export function normalizeForCompare(text: string): string {
@@ -69,9 +78,9 @@ function placeCaretAtEnd(input: HTMLElement): void {
 /**
  * A contenteditable caret is allowed to sit directly on the editor element —
  * between blocks — and inserting multi-line text from there merges the first
- * line with its neighbour ("```pythondef add…"). Move such a caret into the last
- * block; a caret that is already inside one is left alone, so inserting where the
- * user left the caret still works.
+ * line with its neighbour. Move such a caret into the last block; a caret that
+ * is already inside one is left alone, so inserting where the user left the
+ * caret still works.
  */
 function ensureCaretInsideBlock(input: HTMLElement): void {
   const selection = window.getSelection();
@@ -129,10 +138,8 @@ function settle(): Promise<void> {
  * One editor-native line break per line, then the line's text.
  *
  * `insertParagraph` is what makes a *real* block per line in Quill and in
- * Gemini's rich-query editor. `insertLineBreak` is only a soft break: the page
- * then re-parses the block and can swallow a line boundary, and a single
- * multi-line `insertText` gets rewritten the same way (leading spaces come back
- * as non-breaking spaces).
+ * ProseMirror. `insertLineBreak` is only a soft break: the page then re-parses
+ * the block and can swallow a line boundary.
  */
 function insertViaLineBreaks(text: string): boolean {
   const lines = text.split('\n');
@@ -237,7 +244,7 @@ function debugRecord(step: string, extra: Record<string, unknown> = {}): void {
     out.style.setProperty('display', 'none');
     document.body.appendChild(out);
   }
-  const box = document.querySelector('rich-textarea .ql-editor');
+  const box = findChatInput()?.element ?? null;
   const selection = window.getSelection();
   const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
   out.textContent += `${JSON.stringify({
@@ -309,15 +316,34 @@ export async function insertIntoPromptBox(
   prepare(input);
   debugRecord('prepared');
 
-  // Least invasive first. On the real page a synthetic paste is ignored outright
-  // (Gemini only handles trusted paste events), so its window is short: it only
-  // needs to cover an editor that inserts a beat after the event.
-  const attempts: Array<[InsertMethod, () => boolean, number]> = [
-    ['paste', () => insertViaPaste(input, text), 350],
-    ['execCommand-lines', () => insertViaLineBreaks(text), 400],
-    ['execCommand', () => execInsert(text), 400],
-    ['dom', () => insertViaDom(input, text), 400],
+  // Least invasive first. On Gemini a synthetic paste is ignored outright, so
+  // its window is short. ProseMirror editors often handle line breaks better
+  // than one multi-line insertText, so they get that path first.
+  const adapter = getActiveAdapter();
+  const pasteAttempt: [InsertMethod, () => boolean, number] = [
+    'paste',
+    () => insertViaPaste(input, text),
+    350,
   ];
+  const lineAttempt: [InsertMethod, () => boolean, number] = [
+    'execCommand-lines',
+    () => insertViaLineBreaks(text),
+    450,
+  ];
+  const wholeAttempt: [InsertMethod, () => boolean, number] = [
+    'execCommand',
+    () => execInsert(text),
+    400,
+  ];
+  const domAttempt: [InsertMethod, () => boolean, number] = [
+    'dom',
+    () => insertViaDom(input, text),
+    400,
+  ];
+  const attempts =
+    adapter.editorKind === 'prosemirror'
+      ? [lineAttempt, wholeAttempt, pasteAttempt, domAttempt]
+      : [pasteAttempt, lineAttempt, wholeAttempt, domAttempt];
 
   for (const [method, run, timeout] of attempts) {
     // The caret is re-placed per attempt on purpose: dispatching the paste event
@@ -395,50 +421,6 @@ export function findPromptBox(): InputMatch | null {
   return findChatInput();
 }
 
-export { findInputContainer };
-
-/**
- * The send button, scored across the signals Gemini has shipped over time: an
- * aria-label, `data-testid="send-button"`, and a ligature icon whose text content
- * is the word "send". Exported so the popup can report what it found.
- */
-export function findSendButton(options: { includeDisabled?: boolean } = {}): HTMLElement | null {
-  const input = findChatInput();
-  const container = input ? findInputContainer(input.element) : null;
-
-  const isDisabled = (button: HTMLElement) =>
-    (button as HTMLButtonElement).disabled ||
-    button.getAttribute('aria-disabled') === 'true' ||
-    button.hasAttribute('disabled');
-
-  const score = (button: HTMLElement): number => {
-    const label = (button.getAttribute('aria-label') ?? '').trim();
-    const testId = button.getAttribute('data-testid') ?? '';
-    const className = button.className?.toString() ?? '';
-    const icon = button.querySelector('mat-icon, .material-symbols-outlined, .google-symbols');
-    const iconText = (icon?.textContent ?? '').trim().toLowerCase();
-    const ownText = (button.textContent ?? '').trim().toLowerCase();
-
-    let value = 0;
-    if (/^send(\s+message)?$/i.test(label)) value += 100;
-    else if (/^send\b/i.test(label) && !/feedback|comment|report|email/i.test(label)) value += 60;
-    else if (/send/i.test(testId) || /send/i.test(className)) value += 40;
-    if (iconText === 'send' || iconText === 'send_message') value += 50;
-    else if (ownText === 'send') value += 35;
-    if (container?.contains(button)) value += 15;
-    if (button.closest('[aria-hidden="true"]')) value -= 40;
-    return value;
-  };
-
-  const candidates = Array.from(
-    document.querySelectorAll<HTMLElement>('button, [role="button"], [data-testid*="send" i]'),
-  )
-    .filter((button) => (options.includeDisabled || !isDisabled(button)) && score(button) > 0)
-    .sort((a, b) => score(b) - score(a));
-
-  return candidates[0] ?? null;
-}
-
 function labelOf(button: HTMLElement): string {
   const icon = (button.querySelector('mat-icon, .material-symbols-outlined, .google-symbols')?.textContent ?? '').trim();
   return (
@@ -461,11 +443,47 @@ export function describeSendButton(): string {
   return disabled ? `disabled: ${labelOf(disabled)}` : 'not found';
 }
 
-/** Clicks Gemini's send button. User-initiated only. */
-export function sendChatMessage(): { ok: boolean; reason?: string } {
+/**
+ * Clicks the site's send button. User-initiated only.
+ *
+ * Every site enables/renders Send a beat after the input event — Gemini hides
+ * it for an empty box, ChatGPT swaps it into the toolbar — so wait briefly
+ * instead of reporting "not found" on the first frame.
+ */
+export async function sendChatMessage(): Promise<{ ok: boolean; reason?: string }> {
   if (!findChatInput()) return { ok: false, reason: 'prompt box not found' };
-  const target = findSendButton();
-  if (!target) return { ok: false, reason: 'send button not found or still disabled' };
-  target.click();
-  return { ok: true };
+
+  const deadline = performance.now() + 1200;
+  for (;;) {
+    const target = findSendButton();
+    if (target) {
+      target.click();
+      return { ok: true };
+    }
+    if (performance.now() >= deadline) break;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 60));
+  }
+  return { ok: false, reason: 'send button not found or still disabled' };
+}
+
+/** Last-resort copy path when insertion is not possible. */
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.setProperty('position', 'fixed');
+      area.style.setProperty('opacity', '0');
+      (document.body ?? document.documentElement).appendChild(area);
+      area.select();
+      const ok = document.execCommand('copy');
+      area.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
 }

@@ -1,10 +1,19 @@
 /**
  * The popup is the extension's control panel: it lets users configure
- * language, floating button visibility, position, and shortcut.
+ * language, launcher visibility/placement, shortcut, and see diagnostics.
  */
 import { LANGUAGE_META } from '../src/composer/language-meta';
 import { matchesShortcut } from '../src/shared/settings';
-import { test, expect, FIXTURE_PAGE, openPopup, panel, launcher } from './harness';
+import {
+  test,
+  expect,
+  FIXTURE_PAGE,
+  openPopup,
+  panel,
+  launcher,
+  launcherInComposer,
+  launcherIsFloating,
+} from './harness';
 
 test('populates settings from stored configuration', async ({ context, page }) => {
   await page.goto(FIXTURE_PAGE);
@@ -18,9 +27,9 @@ test('populates settings from stored configuration', async ({ context, page }) =
   await expect(language).toHaveValue('python');
 
   await expect(popup.locator('#launcher')).toBeChecked();
-  await expect(popup.locator('#position')).toHaveValue('above-left');
+  await expect(popup.locator('#placement')).toHaveValue('auto');
   await expect(popup.locator('#shortcut')).toHaveValue('Ctrl+Shift+E');
-  await expect(popup.locator('#version')).toContainText('v1.0.0');
+  await expect(popup.locator('#version')).toContainText('v1.1.0');
 });
 
 test('changing floating button setting toggles launcher visibility', async ({ context, page }) => {
@@ -44,49 +53,34 @@ test('changing floating button setting toggles launcher visibility', async ({ co
   await expect(launcher(page)).toBeVisible();
 });
 
-test('changing button position moves the launcher', async ({ context, page }) => {
+test('changing placement moves the launcher between composer and corner', async ({ context, page }) => {
   await page.goto(FIXTURE_PAGE);
   await expect(launcher(page)).toBeVisible();
-  const initialBox = await launcher(page).boundingBox();
-  expect(initialBox).not.toBeNull();
-  const inputBox = await page.locator('.text-input-field').boundingBox();
-  expect(inputBox).not.toBeNull();
+  await expect.poll(() => launcherInComposer(page), { timeout: 3000 }).toBe(true);
 
   const popup = await openPopup(context);
-  const positionSelect = popup.locator('#position');
-  await expect(positionSelect).toHaveValue('above-left');
+  const placement = popup.locator('#placement');
+  await expect(placement).toHaveValue('auto');
 
-  // Change to inside-left: moves inside the prompt box
-  await positionSelect.selectOption('inside-left');
-  await expect.poll(async () => {
-    const box = await launcher(page).boundingBox();
-    return box ? box.y : 0;
-  }).toBeGreaterThan(inputBox!.y);
+  // The fallback is one deterministic viewport corner, not a coordinate chase.
+  await placement.selectOption('floating');
+  await expect.poll(() => launcherIsFloating(page), { timeout: 3000 }).toBe(true);
+  await expect.poll(() => launcherInComposer(page)).toBe(false);
+  const floatingBox = await launcher(page).boundingBox();
+  const viewport = page.viewportSize();
+  expect(floatingBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(floatingBox!.x).toBeGreaterThan(viewport!.width - 100);
+  expect(floatingBox!.y).toBeGreaterThan(viewport!.height - 100);
 
-  // Change to inside-right: moves towards the right inside the prompt box
-  await positionSelect.selectOption('inside-right');
-  await expect.poll(async () => {
-    const box = await launcher(page).boundingBox();
-    return box ? box.x : 0;
-  }).toBeGreaterThan(initialBox!.x + 200);
-
-  // Change to fixed bottom right: moves to viewport bottom-right corner
-  await positionSelect.selectOption('fixed-bottom-right');
-  await expect.poll(async () => {
-    const box = await launcher(page).boundingBox();
-    return box ? box.x : 0;
-  }).toBeGreaterThan(initialBox!.x + 200);
-
-  // Position setting is persisted
+  // The choice is persisted.
   await popup.reload();
-  await expect(popup.locator('#position')).toHaveValue('fixed-bottom-right');
+  await expect(popup.locator('#placement')).toHaveValue('floating');
 
-  // Change back to above-left: moves back above the box
-  await popup.locator('#position').selectOption('above-left');
-  await expect.poll(async () => {
-    const box = await launcher(page).boundingBox();
-    return box ? box.y : 9999;
-  }).toBeLessThan(inputBox!.y);
+  // Back to auto: the chip returns to the composer's action row.
+  await popup.locator('#placement').selectOption('auto');
+  await expect.poll(() => launcherInComposer(page), { timeout: 3000 }).toBe(true);
+  await expect.poll(() => launcherIsFloating(page)).toBe(false);
 });
 
 test('changing shortcut setting configures the toggle hotkey and updates tooltip', async ({ context, page }) => {
@@ -145,7 +139,7 @@ test('select dropdown options have readable contrast in dark mode', async ({ con
   const popup = await openPopup(context);
   await popup.emulateMedia({ colorScheme: 'dark' });
 
-  for (const id of ['#language', '#position', '#shortcut']) {
+  for (const id of ['#language', '#placement', '#shortcut']) {
     const selectScheme = await popup.locator(id).evaluate((el) => {
       return getComputedStyle(el).colorScheme;
     });

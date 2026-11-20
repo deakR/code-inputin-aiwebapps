@@ -13,7 +13,7 @@ export const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const extensionPath = path.join(root, 'dist');
 export const FIXTURES = 'http://127.0.0.1:5179/fixtures';
 export const FIXTURE_PAGE = `${FIXTURES}/gemini-mock.html`;
-export const EXTENSION_NAME = 'Gemini Code Input';
+export const EXTENSION_NAME = 'Code Input for AI Chat';
 
 export const test = base.extend<{ context: BrowserContext; page: Page }>({
   context: async ({}, use) => {
@@ -72,17 +72,47 @@ export function composerBoxHeight(page: Page): Promise<number> {
 export function panelIsDocked(page: Page): Promise<boolean> {
   return page.evaluate(() => Boolean(document.querySelector('.text-input-field #gci-inbox')));
 }
-/**
- * Distance from the bottom of the Code pill to the top of the input box. It stays
- * small when the pill is anchored to the box and grows large when the pill is
- * left behind by a re-layout (the bug that parked it mid-conversation).
- */
-export function launcherGap(page: Page): Promise<number> {
+/** Whether the launcher host is a child of the prompt box's own action row. */
+export function launcherInComposer(page: Page): Promise<boolean> {
   return page.evaluate(() => {
-    const pill = document.getElementById('gci-root')?.shadowRoot?.querySelector('.gci-launcher');
+    const host = document.getElementById('gci-root');
     const box = document.querySelector('.text-input-field');
-    if (!pill || !box) return Number.NaN;
-    return Math.round(box.getBoundingClientRect().top - pill.getBoundingClientRect().bottom);
+    return Boolean(host && box && box.contains(host));
+  });
+}
+
+/** Geometry used to prove the chip cannot be left behind by a re-layout. */
+export function launcherGeometry(page: Page): Promise<{
+  inComposer: boolean;
+  parentTag: string | null;
+  boxTop: number;
+  boxBottom: number;
+  pillTop: number;
+  pillBottom: number;
+} | null> {
+  return page.evaluate(() => {
+    const host = document.getElementById('gci-root');
+    const pill = host?.shadowRoot?.querySelector('.gci-launcher');
+    const box = document.querySelector('.text-input-field');
+    if (!host || !pill || !box) return null;
+    const boxRect = box.getBoundingClientRect();
+    const pillRect = pill.getBoundingClientRect();
+    return {
+      inComposer: box.contains(host),
+      parentTag: host.parentElement?.tagName.toLowerCase() ?? null,
+      boxTop: Math.round(boxRect.top),
+      boxBottom: Math.round(boxRect.bottom),
+      pillTop: Math.round(pillRect.top),
+      pillBottom: Math.round(pillRect.bottom),
+    };
+  });
+}
+
+/** Whether the launcher host is the viewport-anchored fallback. */
+export function launcherIsFloating(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const host = document.getElementById('gci-root');
+    return Boolean(host && host.parentElement === document.body && host.classList.contains('gci-floating'));
   });
 }
 /** Editor overlays (autocomplete popup, search panel) that are actually on screen. */

@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Gemini Code Input",
-  "version": "1.0.0",
-  "description": "Type code into Gemini with real syntax highlighting, auto-indentation and line numbers.",
-  "permissions": ["storage"],
+  "name": "Code Input for AI Chat",
+  "short_name": "Code Input",
+  "version": "1.1.0",
+  "description": "Write code in AI chat boxes with syntax highlighting, auto-indentation and line numbers.",
+  "permissions": ["storage", "clipboardWrite"],
   "browser_specific_settings": {
     "gecko": {
       "id": "gemini-code-input@users.noreply.github.com",
@@ -23,7 +24,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "Gemini Code Input",
+    "default_title": "Code Input for AI Chat",
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
@@ -36,6 +37,15 @@
     {
       "matches": [
         "https://gemini.google.com/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://chat.deepseek.com/*",
+        "https://copilot.microsoft.com/*",
+        "https://copilot.com/*",
+        "https://www.copilot.com/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*",
         "http://localhost/*",
         "http://127.0.0.1/*"
       ],
@@ -48,6 +58,15 @@
       "resources": ["composer.js", "composer.js.map", "composer/*"],
       "matches": [
         "https://gemini.google.com/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://chat.deepseek.com/*",
+        "https://copilot.microsoft.com/*",
+        "https://copilot.com/*",
+        "https://www.copilot.com/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*",
         "http://localhost/*",
         "http://127.0.0.1/*"
       ]

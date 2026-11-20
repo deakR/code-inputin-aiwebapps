@@ -127,6 +127,11 @@ try {
   await inputArea.screenshot({ path: path.join(docsImages, 'gemini-code-editor-dropdown.png') });
   console.log('[screenshot] Saved gemini-code-editor-dropdown.png');
 
+  // Close the editor so the popup diagnostics shows the launcher in its real,
+  // closed state rather than "hidden".
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+
   // 4. Capture Extension Popup
   // Find extension id
   const internals = await context.newPage();
@@ -137,7 +142,7 @@ try {
   let extId = '';
   for (const chunk of dump.split('"id"')) {
     const id = chunk.match(/^\s*:\s*"([a-p]{32})"/)?.[1];
-    if (id && chunk.slice(0, 500).includes('Gemini Code Input')) {
+    if (id && chunk.slice(0, 500).includes('Code Input for AI Chat')) {
       extId = id;
       break;
     }

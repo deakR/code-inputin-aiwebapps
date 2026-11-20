@@ -1,10 +1,12 @@
 import { ext } from './ext';
 
-export type LauncherPosition =
-  | 'above-left'
-  | 'inside-left'
-  | 'inside-right'
-  | 'fixed-bottom-right';
+/**
+ * `auto` docks the chip into the site's own composer actions. `floating` keeps
+ * it in the viewport corner for sites where the composer cannot take a child.
+ * There is deliberately no coordinate picker: that was the source of the
+ * inconsistent placements in v1.
+ */
+export type LauncherMode = 'auto' | 'floating';
 
 export interface Settings {
   /** Default language id for a fresh editor session. */
@@ -13,9 +15,9 @@ export interface Settings {
   wrapInFence: boolean;
   /** Wrap long lines inside the editor. */
   wrapLines: boolean;
-  /** Show the floating launcher pill next to the prompt box. */
+  /** Show the code launcher in the composer. */
   showLauncher: boolean;
-  launcherPosition: LauncherPosition;
+  launcherMode: LauncherMode;
   /** Shortcut combo to toggle editor, e.g. 'Ctrl+Shift+E'. */
   shortcut: string;
   /**
@@ -33,7 +35,7 @@ export const DEFAULT_SETTINGS: Settings = {
   wrapInFence: true,
   wrapLines: false,
   showLauncher: true,
-  launcherPosition: 'above-left',
+  launcherMode: 'auto',
   shortcut: 'Ctrl+Shift+E',
   panelHeight: 340,
   panelWidth: 760,
@@ -79,7 +81,12 @@ export async function loadSettings(): Promise<Settings> {
   try {
     const stored = await ext.storage.sync.get(STORAGE_KEY);
     const value = stored?.[STORAGE_KEY] as Partial<Settings> | undefined;
-    return { ...DEFAULT_SETTINGS, ...(value ?? {}) };
+    const merged = { ...DEFAULT_SETTINGS, ...(value ?? {}) };
+    // v1 stored coordinate placements; `auto` is the safe migration.
+    if (merged.launcherMode !== 'auto' && merged.launcherMode !== 'floating') {
+      merged.launcherMode = 'auto';
+    }
+    return merged;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -98,7 +105,11 @@ export function onSettingsChanged(callback: (settings: Settings) => void): () =>
   ) => {
     if (areaName !== 'sync' || !changes[STORAGE_KEY]) return;
     const value = changes[STORAGE_KEY].newValue as Partial<Settings> | undefined;
-    callback({ ...DEFAULT_SETTINGS, ...(value ?? {}) });
+    const merged = { ...DEFAULT_SETTINGS, ...(value ?? {}) };
+    if (merged.launcherMode !== 'auto' && merged.launcherMode !== 'floating') {
+      merged.launcherMode = 'auto';
+    }
+    callback(merged);
   };
   ext.storage.onChanged.addListener(listener);
   return () => ext.storage.onChanged.removeListener(listener);

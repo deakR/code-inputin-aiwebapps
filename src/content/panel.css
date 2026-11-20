@@ -25,14 +25,17 @@
 }
 
 .gci-launcher,
-.gci-panel {
+.gci-panel,
+.gci-toast {
   --gci-ui-font: 'Google Sans', 'Google Sans Text', Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --gci-code-font: 'Google Sans Mono', 'Roboto Mono', Consolas, 'Courier New', monospace;
   --gci-bg: #ffffff;
   --gci-fg: #1f1f1f;
   --gci-muted: #5f6368;
   --gci-border: rgba(0, 0, 0, 0.14);
-  --gci-accent: #1a73e8;
+  --gci-accent-light: #1a73e8;
+  --gci-accent-dark: #8ab4f8;
+  --gci-accent: var(--gci-accent-light);
   --gci-accent-fg: #ffffff;
   --gci-hover: rgba(26, 115, 232, 0.08);
   --gci-danger: #b3261e;
@@ -52,13 +55,25 @@
   --gci-fg: #e8eaed;
   --gci-muted: #9aa0a6;
   --gci-border: rgba(255, 255, 255, 0.16);
-  --gci-accent: #8ab4f8;
+  --gci-accent: var(--gci-accent-dark, #8ab4f8);
   --gci-accent-fg: #202124;
   --gci-hover: rgba(138, 180, 248, 0.14);
   --gci-danger: #f28b82;
 }
 
 /* ── launcher pill ─────────────────────────────────────────────────────── */
+
+/*
+ * The launch chip is normally a child of the composer's own action row. The
+ * host element is the flex item; the button inside it therefore must not
+ * position itself against the viewport. The `gci-floating` variant is the
+ * fallback for sites whose action row cannot take a child.
+ */
+:host(.gci-inline) .gci-launcher,
+:host(.gci-floating) .gci-launcher {
+  position: static;
+  z-index: auto;
+}
 
 .gci-launcher {
   position: fixed;
@@ -67,8 +82,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   color: var(--gci-muted);
   background: var(--gci-bg);
@@ -429,4 +444,12 @@
 
 .gci-toast-error {
   background: var(--gci-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gci-launcher,
+  .gci-launcher.gci-placed,
+  .gci-toast {
+    transition: none;
+  }
 }

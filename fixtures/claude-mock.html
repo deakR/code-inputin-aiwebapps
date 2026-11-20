@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="gci-site" content="claude" />
+    <title>Claude mock — prompt box fixture</title>
+    <link rel="stylesheet" href="site-mock.css" />
+  </head>
+  <body>
+    <main id="conversation"></main>
+    <div id="composer">
+      <fieldset class="composer-box">
+        <div
+          id="prompt-input"
+          class="editor ProseMirror"
+          contenteditable="true"
+          role="textbox"
+          aria-label="Write your prompt to Claude"
+          data-placeholder="How can I help you today?"
+        ></div>
+        <div class="actions">
+          <button type="button" class="attach" aria-label="Attach files">+</button>
+          <span class="spacer"></span>
+          <button type="button" id="send-button" class="send" aria-label="Send message" disabled>➤</button>
+        </div>
+      </fieldset>
+    </div>
+    <script src="site-mock.js"></script>
+  </body>
+</html>

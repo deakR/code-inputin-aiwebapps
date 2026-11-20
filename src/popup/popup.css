@@ -106,6 +106,68 @@ input[type='checkbox'] {
   cursor: pointer;
 }
 
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0 4px;
+}
+
+.status-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11.5px;
+}
+
+.status-row > span {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.status-row > strong {
+  font-weight: 500;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 190px;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.actions button {
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.actions button:hover {
+  background: var(--hover);
+}
+
+.actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.note {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
 footer {
   margin-top: 12px;
   border-top: 1px solid var(--border);

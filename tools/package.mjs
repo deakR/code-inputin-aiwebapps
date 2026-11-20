@@ -3,8 +3,8 @@
  *
  *   node tools/package.mjs
  *
- *   release/gemini-code-input-<version>.zip         upload to Edge Add-ons / AMO
- *   release/gemini-code-input-<version>-source.zip  what AMO asks for when the
+ *   release/code-input-for-ai-chat-<version>.zip         upload to Edge Add-ons / AMO
+ *   release/code-input-for-ai-chat-<version>-source.zip  what AMO asks for when the
  *                                                   submitted code is bundled
  *
  * `build/` is the store flavour of the extension (no source maps, no fixture
@@ -56,8 +56,9 @@ with \`tools/make-icons.mjs\`. \`--store\` only strips the localhost match patte
 that the test fixtures use.
 
 The extension talks to no server of its own: the only traffic it causes is the
-\`import()\` of the bundled editor from its own package. Everything else on the
-page is Gemini's.
+\`import()\` of the bundled editor from its own package. The supported sites and
+their host patterns live in \`src/sites/hosts.json\`; that file is the single
+source for both the content-script and web-accessible-resource matches.
 
 ## About that one linter warning
 

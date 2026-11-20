@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Gemini Code Input</title>
+    <title>Code Input for AI Chat</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <header>
-      <h1>Gemini Code Input</h1>
-      <p class="sub">A real code editor for Gemini's prompt box.</p>
+      <h1>Code Input for AI Chat</h1>
+      <p class="sub">A real code editor for AI prompt boxes.</p>
     </header>
 
     <section class="group">
@@ -18,16 +18,14 @@
         <select id="language"></select>
       </label>
       <label class="row">
-        <span>Show floating button</span>
+        <span>Show code button</span>
         <input type="checkbox" id="launcher" />
       </label>
       <label class="row">
-        <span>Button position</span>
-        <select id="position">
-          <option value="above-left">Above, left</option>
-          <option value="inside-left">Inside the box, left</option>
-          <option value="inside-right">Inside the box, right</option>
-          <option value="fixed-bottom-right">Screen bottom right</option>
+        <span>Button placement</span>
+        <select id="placement">
+          <option value="auto">In the composer</option>
+          <option value="floating">Floating corner</option>
         </select>
       </label>
       <label class="row">
@@ -42,6 +40,21 @@
           <option value="Alt+Shift+K">Alt+Shift+K</option>
         </select>
       </label>
+    </section>
+
+    <section class="group">
+      <div class="status">
+        <div class="status-row"><span>This page</span><strong id="status-site">Checking…</strong></div>
+        <div class="status-row"><span>Prompt box</span><strong id="status-input">—</strong></div>
+        <div class="status-row"><span>Launcher</span><strong id="status-launcher">—</strong></div>
+        <div class="status-row"><span>Send button</span><strong id="status-send">—</strong></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="pick">Pick prompt box</button>
+        <button type="button" id="open-editor">Open editor</button>
+        <button type="button" id="diag">Refresh</button>
+      </div>
+      <p class="note" id="status-note"></p>
     </section>
 
     <footer>

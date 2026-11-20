@@ -1,27 +1,25 @@
 /**
  * Content script entry point.
  *
- * Runs on gemini.google.com, and on the local test fixtures so the UI can be
- * exercised without an account.
+ * The manifest injects this only on supported hosts (and on the local test
+ * fixtures). The registry turns the hostname into an adapter; the adapter is a
+ * set of hints, and the detector in `./dom` still works without it.
  */
+import { getAdapterForPage } from '../sites/registry';
 import { start } from './panel';
-
-const hostname = location.hostname;
-const isGemini = /(^|\.)gemini\.google\.com$/i.test(hostname);
-const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
-const isFixture = isLocal && location.pathname.includes('/fixtures/');
 
 interface InjectedWindow extends Window {
   __gciStarted?: boolean;
 }
 
 const scope = window as InjectedWindow;
+const adapter = getAdapterForPage();
 
-if ((isGemini || isFixture) && !scope.__gciStarted) {
+if (adapter && !scope.__gciStarted) {
   scope.__gciStarted = true;
   try {
-    start();
+    start(adapter);
   } catch (error) {
-    console.error('[gemini-code-input] failed to start', error);
+    console.error('[gci] failed to start', error);
   }
 }

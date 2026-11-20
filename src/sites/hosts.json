@@ -1,0 +1,11 @@
+{
+  "dev": ["http://localhost/*", "http://127.0.0.1/*"],
+  "sites": {
+    "gemini": ["https://gemini.google.com/*"],
+    "chatgpt": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+    "claude": ["https://claude.ai/*"],
+    "deepseek": ["https://chat.deepseek.com/*"],
+    "copilot": ["https://copilot.microsoft.com/*", "https://copilot.com/*", "https://www.copilot.com/*"],
+    "perplexity": ["https://www.perplexity.ai/*", "https://perplexity.ai/*"]
+  }
+}

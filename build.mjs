@@ -25,22 +25,21 @@ const staticFiles = [
   ['src/popup/popup.css', 'popup/popup.css'],
 ];
 
-/** Host patterns that only exist so the fixtures and the tests can load the extension. */
-const DEV_HOSTS = ['http://localhost/*', 'http://127.0.0.1/*'];
-
 /**
- * `src/manifest.json` doubles as the development manifest. `--store` strips the
- * fixture hosts, so the package that goes to Edge Add-ons / AMO asks for
- * gemini.google.com and nothing else.
+ * `src/sites/hosts.json` is the single source of truth for host patterns. The
+ * content-script and web-accessible-resource matches are injected into the
+ * manifest here, so adding a site cannot leave one of the two lists behind.
  */
 async function writeManifest() {
   const manifest = JSON.parse(await readFile(abs('src/manifest.json'), 'utf8'));
-  if (store) {
-    const scriptLists = [...(manifest.content_scripts ?? []), ...(manifest.web_accessible_resources ?? [])];
-    for (const list of scriptLists) {
-      list.matches = list.matches.filter((match) => !DEV_HOSTS.includes(match));
-    }
-  }
+  const hosts = JSON.parse(await readFile(abs('src/sites/hosts.json'), 'utf8'));
+  const siteMatches = Object.values(hosts.sites ?? {}).flat();
+  const devMatches = hosts.dev ?? [];
+  const matches = [...new Set(store ? siteMatches : [...siteMatches, ...devMatches])];
+
+  for (const script of manifest.content_scripts ?? []) script.matches = matches;
+  for (const resource of manifest.web_accessible_resources ?? []) resource.matches = matches;
+
   await writeFile(path.join(dist, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 }
 

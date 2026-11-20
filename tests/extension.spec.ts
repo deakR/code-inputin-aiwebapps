@@ -26,7 +26,8 @@ import {
   composerBoxHeight,
   composerRow,
   panelIsDocked,
-  launcherGap,
+  launcherGeometry,
+  launcherInComposer,
   visibleEditorOverlays,
 } from './harness';
 
@@ -111,8 +112,9 @@ test('clicking away closes the editor without losing the code', async ({ page })
   await expect(composerRow(page)).toBeVisible();
   expect(await panelIsDocked(page)).toBe(false);
   expect(await promptLines(page)).toEqual([]);
-  // The pill comes back to the box, not to where the editor used to be.
-  await expect.poll(() => launcherGap(page), { timeout: 3000 }).toBeLessThan(60);
+  // The chip comes back into the composer's own action row, not to viewport
+  // coordinates left over from the editor.
+  await expect.poll(() => launcherInComposer(page), { timeout: 3000 }).toBe(true);
 
   // Reopening brings the code back: nothing was thrown away.
   await openEditor(page);
@@ -131,15 +133,15 @@ test('Gemini’s own collapse control closes the editor', async ({ page }) => {
   expect(await panelIsDocked(page)).toBe(false);
 });
 
-test('keeps the pill on the box when the composer grows on its own', async ({ page }) => {
+test('keeps the chip in the composer when the box grows on its own', async ({ page }) => {
   await page.goto(`${FIXTURES}/gemini-mock.html`);
   await expect(launcher(page)).toBeVisible();
-  await expect.poll(() => launcherGap(page), { timeout: 3000 }).toBeGreaterThan(0);
-  const settled = await launcherGap(page);
-  // Let any follow-up frame loop retire, so this exercises a re-layout that
-  // arrives while the page is idle — which is what Gemini's animated layout does.
-  await page.waitForTimeout(1200);
-  expect(Math.abs((await launcherGap(page)) - settled)).toBeLessThanOrEqual(1);
+  await expect.poll(() => launcherInComposer(page), { timeout: 3000 }).toBe(true);
+
+  const before = await launcherGeometry(page);
+  expect(before).not.toBeNull();
+  expect(before!.pillTop).toBeGreaterThanOrEqual(before!.boxTop);
+  expect(before!.pillBottom).toBeLessThanOrEqual(before!.boxBottom);
 
   // A prompt box growing the way Gemini's does when a prompt runs to several
   // lines: no scroll, no resize event, just layout.
@@ -150,25 +152,41 @@ test('keeps the pill on the box when the composer grows on its own', async ({ pa
     box.dispatchEvent(new Event('input', { bubbles: true }));
   });
 
-  // Left alone the pill stays where the box used to start — which is how it
-  // ended up over the conversation. It has to end up hugging the taller box.
+  // The browser laid the chip out with the action row, so it is still inside
+  // the (now taller) box without any coordinate update.
   await expect
-    .poll(async () => Math.abs((await launcherGap(page)) - settled), { timeout: 3000 })
-    .toBeLessThanOrEqual(8);
-  expect(await launcherGap(page)).toBeGreaterThan(0);
+    .poll(async () => {
+      const geometry = await launcherGeometry(page);
+      return geometry
+        ? geometry.inComposer &&
+            geometry.pillTop >= geometry.boxTop &&
+            geometry.pillBottom <= geometry.boxBottom
+        : false;
+    }, { timeout: 3000 })
+    .toBe(true);
 });
 
 /* ── tests ─────────────────────────────────────────────────────────────── */
 
-test('shows a launcher anchored above the prompt box', async ({ page }) => {
+test('shows the launcher inside the prompt box action row', async ({ page }) => {
   await page.goto(`${FIXTURES}/gemini-mock.html`);
   await expect(launcher(page)).toBeVisible();
+  await expect.poll(() => launcherInComposer(page), { timeout: 3000 }).toBe(true);
 
-  const launcherBox = await launcher(page).boundingBox();
-  const inputBox = await page.locator('.text-input-field').boundingBox();
-  expect(launcherBox).not.toBeNull();
-  expect(inputBox).not.toBeNull();
-  expect(launcherBox!.y).toBeLessThan(inputBox!.y);
+  const geometry = await launcherGeometry(page);
+  expect(geometry).not.toBeNull();
+  expect(geometry!.inComposer).toBe(true);
+  expect(geometry!.pillTop).toBeGreaterThanOrEqual(geometry!.boxTop);
+  expect(geometry!.pillBottom).toBeLessThanOrEqual(geometry!.boxBottom);
+  // No viewport coordinates on the host: the browser owns the placement.
+  const hostStyle = await page.locator('#gci-root').evaluate((el) => ({
+    position: getComputedStyle(el).position,
+    left: el.style.left,
+    top: el.style.top,
+  }));
+  expect(hostStyle.position).toBe('static');
+  expect(hostStyle.left).toBe('');
+  expect(hostStyle.top).toBe('');
 });
 
 test('opens the editor with the keyboard shortcut', async ({ page }) => {
@@ -348,6 +366,32 @@ test('works under a strict CSP with Trusted Types enforced', async ({ page }) =>
 
   expect(violations).toEqual([]);
   expect(pageErrors).toEqual([]);
+});
+
+test('restores an unsaved draft after a reload, and clears it after insert', async ({ page }) => {
+  await page.goto(`${FIXTURES}/gemini-mock.html`);
+  await openEditor(page);
+  await writeSample(page);
+
+  // Draft writes are debounced; give the write a beat, then reload the page.
+  await page.waitForTimeout(900);
+  await page.reload();
+  await expect(launcher(page)).toBeVisible();
+  await openEditor(page);
+
+  await expect(cmLines(page).first()).toHaveText('def add(a, b):');
+  await expect(toast(page)).toContainText('Restored unsaved code');
+
+  await insertButton(page).click();
+  await expect(panel(page)).toBeHidden();
+  await page.waitForTimeout(300);
+
+  // The draft is cleared on a successful insert: opening after a reload is
+  // empty again, not a stale copy of code that is already in the prompt box.
+  await page.reload();
+  await expect(launcher(page)).toBeVisible();
+  await openEditor(page);
+  await expect(page.locator('.cm-placeholder')).toBeVisible();
 });
 
 test('the send button inserts and sends in one go', async ({ page }) => {
