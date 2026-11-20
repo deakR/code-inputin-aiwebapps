@@ -1,7 +1,7 @@
 {
   "name": "code-input-ai-chat",
   "private": true,
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "A real code editor for AI chat prompt boxes, with syntax highlighting, auto-indentation and line numbers.",
   "type": "module",
   "scripts": {

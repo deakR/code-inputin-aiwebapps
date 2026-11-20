@@ -611,62 +611,7 @@ export function findAttachButton(): HTMLElement | null {
   return null;
 }
 
-export interface LauncherSlot {
-  container: HTMLElement;
-  before: Element | null;
-}
 
-/**
- * An action row is allowed to be a plain block (many sites use one), as long
- * as it does not also contain the text input. That last check keeps us from
- * appending the chip to the whole composer when the send button is a direct
- * child of a large wrapper.
- */
-function isActionContainer(element: HTMLElement, input: HTMLElement): boolean {
-  if (element === document.body || element === document.documentElement) return false;
-  if (element === input || element.contains(input)) return false;
-  if (element.closest('form') === element) return false;
-  // Never nest the chip inside a button or an Angular/web-component wrapper.
-  if (element.matches('button, [role="button"]')) return false;
-  if (element.tagName.includes('-')) return false;
-  if (element.querySelectorAll('button, [role="button"]').length === 0) return false;
-  const display = getComputedStyle(element).display;
-  return /flex|grid/.test(display) || element.children.length >= 1;
-}
-
-/**
- * Where the launcher chip belongs. The send button's parent is preferred
- * because the send control is the composer's most stable landmark.
- */
-export function findLauncherSlot(input: HTMLElement): LauncherSlot | null {
-  const custom = getActiveAdapter().launcherSlot?.(input);
-  if (custom) return custom;
-
-  const send = findSendButton({ includeDisabled: true });
-  if (send?.parentElement && isActionContainer(send.parentElement, input)) {
-    return { container: send.parentElement, before: send };
-  }
-
-  const attach = findAttachButton();
-  if (attach?.parentElement && isActionContainer(attach.parentElement, input)) {
-    let before = attach.nextElementSibling;
-    if (before?.id === 'gci-root') before = before.nextElementSibling;
-    return { container: attach.parentElement, before };
-  }
-
-  const box = findComposerBox(input);
-  if (box) {
-    for (const child of Array.from(box.querySelectorAll<HTMLElement>('div, section'))) {
-      if (!isActionContainer(child, input)) continue;
-      const hasSend = Array.from(child.querySelectorAll<HTMLElement>('button, [role="button"]')).some(
-        (button) => isSendLike(button),
-      );
-      if (hasSend) return { container: child, before: null };
-    }
-  }
-
-  return null;
-}
 
 /* ── text and responses ─────────────────────────────────────────────────── */
 

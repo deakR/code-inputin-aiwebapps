@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Code Input for AI Chat",
   "short_name": "Code Input",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Write code in AI chat boxes with syntax highlighting, auto-indentation and line numbers.",
   "permissions": ["storage", "clipboardWrite"],
   "browser_specific_settings": {

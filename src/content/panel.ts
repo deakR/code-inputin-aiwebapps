@@ -23,11 +23,12 @@ import {
 } from '../shared/settings';
 import type { SiteAdapter } from '../sites/types';
 import {
+  findAttachButton,
   findChatInput,
   findComposerBox,
   findComposerDock,
   findInputContainer,
-  findLauncherSlot,
+  findSendButton,
   hasRepairDescriptor,
   loadRepairDescriptor,
   rememberFocusedComposer,
@@ -114,8 +115,6 @@ let countLabel: HTMLElement | null = null;
 let editor: EditorHandle | null = null;
 let match: InputMatch | null = null;
 let currentLanguageId = DEFAULT_SETTINGS.language;
-/** The prompt box the launcher is currently anchored to. */
-let launcherFor: HTMLElement | null = null;
 let isOpen = false;
 let lastInserted: string | null = null;
 let panelBottom = 0;
@@ -405,7 +404,271 @@ function buildLauncher(root: ShadowRoot): void {
   applyAdapterTheme();
 }
 
-/** Where the chip should live: the composer's action row, or the fallback corner. */
+interface LauncherSlotCandidate {
+  container: HTMLElement;
+  before: Element | null;
+  score: number;
+  source: string;
+}
+
+interface LauncherPlacement {
+  /** The composer box, not the editable: the textarea can be replaced while the composer stays. */
+  composer: HTMLElement;
+  mode: 'inline' | 'floating';
+  container: HTMLElement | null;
+  before: Element | null;
+}
+
+let launcherPlacement: LauncherPlacement | null = null;
+let launcherRetryTimer: number | undefined;
+
+/**
+ * A page menu or tooltip can cover the chip for a second without the chip's
+ * row having changed. Keep the placement and retry instead of moving the chip
+ * to another side, which is what made it appear to "jump" on ChatGPT.
+ */
+function scheduleLauncherRetry(delay = 500): void {
+  if (launcherRetryTimer) return;
+  launcherRetryTimer = window.setTimeout(() => {
+    launcherRetryTimer = undefined;
+    mountLauncher();
+  }, delay);
+}
+
+function composerFor(input: HTMLElement): HTMLElement {
+  return findComposerBox(input) ?? findInputContainer(input);
+}
+
+function firstChildNotOurs(container: HTMLElement): Element | null {
+  return (
+    Array.from(container.children).find(
+      (child) => child !== launcherHost && !child.id.startsWith('gci-'),
+    ) ?? null
+  );
+}
+
+/**
+ * A stable insertion point. The pointer can be null when the whole row is
+ * appended to; in that case the chip is placed before the first host control.
+ */
+function normalizeBefore(container: HTMLElement, before: Element | null): Element | null {
+  if (before === launcherHost) return launcherHost?.nextElementSibling ?? null;
+  if (before && before.parentElement === container) return before;
+  return firstChildNotOurs(container);
+}
+
+function isPotentialSlot(
+  container: HTMLElement | null,
+  input: HTMLElement,
+  composer: HTMLElement,
+): container is HTMLElement {
+  if (!container || !container.isConnected) return false;
+  if (container === input || container.contains(input)) return false;
+  if (container === document.body || container === document.documentElement) return false;
+  if (container.closest('#gci-root, #gci-inbox, #gci-overlay, #gci-picker')) return false;
+  const root = container.getRootNode();
+  if (root instanceof ShadowRoot && /^gci-/.test(root.host?.id ?? '')) return false;
+  if (container.matches('button, [role="button"]') || container.tagName.includes('-')) {
+    return false;
+  }
+  const label = `${container.getAttribute('data-slot') ?? ''} ${container.className?.toString() ?? ''}`.toLowerCase();
+  if (/accessory|overlay|backdrop|tooltip|popover|dropdown-menu/.test(label)) return false;
+
+  const rect = container.getBoundingClientRect();
+  if (rect.width < 24 || rect.height < 12) return false;
+  if (rect.bottom < 0 || rect.top > window.innerHeight) return false;
+
+  const style = getComputedStyle(container);
+  if (style.display === 'contents' || style.visibility === 'hidden') return false;
+  if (style.pointerEvents === 'none') return false;
+
+  // Keep candidate rows in the composer's neighbourhood, even when the page
+  // has sidebars with their own action buttons.
+  if (container !== composer && !composer.contains(container)) {
+    const composerRect = composer.getBoundingClientRect();
+    if (
+      rect.bottom < composerRect.top - 140 ||
+      rect.top > composerRect.bottom + 140
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function addSlotCandidate(
+  candidates: Map<HTMLElement, LauncherSlotCandidate>,
+  container: HTMLElement | null,
+  input: HTMLElement,
+  composer: HTMLElement,
+  before: Element | null,
+  score: number,
+  source: string,
+): void {
+  if (!isPotentialSlot(container, input, composer)) return;
+  const current = candidates.get(container);
+  if (current && current.score >= score) return;
+  candidates.set(container, {
+    container,
+    before: normalizeBefore(container, before),
+    score,
+    source,
+  });
+}
+
+/**
+ * Find every plausible action row around the composer, best first:
+ *   adapter hint → labelled trailing/action row → send row → attach row →
+ *   any compact row containing buttons.
+ *
+ * Candidates are validated by an actual hit test in `mountLauncher`; a row
+ * that is covered by a page overlay is rejected and the next one is tried.
+ */
+function collectLauncherCandidates(input: HTMLElement): LauncherSlotCandidate[] {
+  const composer = composerFor(input);
+  const candidates = new Map<HTMLElement, LauncherSlotCandidate>();
+
+  const custom = adapter.launcherSlot?.(input);
+  if (custom) {
+    addSlotCandidate(candidates, custom.container, input, composer, custom.before, 120, 'adapter');
+  }
+
+  const send = findSendButton({ includeDisabled: true });
+  if (send) {
+    let node: HTMLElement | null = send.parentElement;
+    for (let depth = 0; node && depth < 4; depth += 1, node = node.parentElement) {
+      addSlotCandidate(candidates, node, input, composer, send, 85 - depth * 8, 'send');
+    }
+  }
+
+  const attach = findAttachButton();
+  if (attach) {
+    let node: HTMLElement | null = attach.parentElement;
+    for (let depth = 0; node && depth < 4; depth += 1, node = node.parentElement) {
+      let before = attach.nextElementSibling;
+      if (before && before === launcherHost) before = before.nextElementSibling;
+      addSlotCandidate(candidates, node, input, composer, before, 60 - depth * 7, 'attach');
+    }
+  }
+
+  for (const selector of [
+    '[data-slot*="trailing" i]',
+    '[data-slot*="action" i]',
+    '[class*="trailing-actions" i]',
+    '[class*="composer-actions" i]',
+    '[class*="input-buttons" i]',
+    '[class*="action-row" i]',
+  ]) {
+    for (const node of composer.querySelectorAll<HTMLElement>(selector)) {
+      addSlotCandidate(candidates, node, input, composer, null, 75, 'labelled-row');
+    }
+  }
+
+  // Last structural fallback: compact rows inside the composer that contain
+  // controls. The hit test still has the final say.
+  const descendants = Array.from(composer.querySelectorAll<HTMLElement>('div, section')).slice(0, 120);
+  for (const node of descendants) {
+    if (!node.querySelector('button, [role="button"], input[type="submit"]')) continue;
+    const rect = node.getBoundingClientRect();
+    if (rect.height > 64 || rect.width < 60) continue;
+    addSlotCandidate(candidates, node, input, composer, null, 35, 'button-row');
+  }
+
+  return [...candidates.values()].sort((a, b) => b.score - a.score).slice(0, 12);
+}
+
+/** True when the visible pixel at the chip's centre belongs to the chip. */
+function isHostHit(hit: Element | null, host: HTMLElement): boolean {
+  if (!hit) return false;
+  if (hit === host || host.contains(hit)) return true;
+  const root = hit.getRootNode();
+  return root instanceof ShadowRoot && root.host === host;
+}
+
+/** `elementFromPoint` stops at the outer shadow host; drill into open roots. */
+function deepElementFromPoint(x: number, y: number): Element | null {
+  let element = document.elementFromPoint(x, y);
+  while (element?.shadowRoot) {
+    const inner = element.shadowRoot.elementFromPoint(x, y);
+    if (!inner || inner === element) break;
+    element = inner;
+  }
+  return element;
+}
+
+function hostIsClickable(host: HTMLElement): boolean {
+  const rect = host.getBoundingClientRect();
+  if (rect.width < 8 || rect.height < 8) return false;
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+  if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return false;
+  return isHostHit(deepElementFromPoint(x, y), host);
+}
+
+/**
+ * Try one row for real: insert the chip, force layout, and hit-test its centre.
+ * A covered candidate is removed and the next one is tried. This is the check
+ * that catches ChatGPT's `composer-accessory` overlay, which is invisible to
+ * selector-based logic and swallowed clicks on the left-hand attach row.
+ */
+function insertHostInSlot(
+  host: HTMLElement,
+  container: HTMLElement,
+  before: Element | null,
+): boolean {
+  try {
+    applyHostStyles(host, 'inline');
+    host.style.setProperty('opacity', '0', 'important');
+    container.insertBefore(host, normalizeBefore(container, before));
+
+    const hostRect = host.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const outside =
+      hostRect.width < 8 ||
+      hostRect.height < 8 ||
+      hostRect.left < containerRect.left - 2 ||
+      hostRect.right > containerRect.right + 2 ||
+      hostRect.top < containerRect.top - 2 ||
+      hostRect.bottom > containerRect.bottom + 2;
+
+    if (outside || !hostIsClickable(host)) {
+      host.remove();
+      return false;
+    }
+
+    host.style.setProperty('opacity', '1', 'important');
+    return true;
+  } catch {
+    host.remove();
+    return false;
+  }
+}
+
+/** The fallback picks the first viewport corner whose pixels are not covered. */
+function placeFloating(host: HTMLElement): void {
+  const corners = [
+    ['right', '20px', 'bottom', '20px'],
+    ['left', '20px', 'bottom', '20px'],
+    ['right', '20px', 'top', '20px'],
+    ['left', '20px', 'top', '20px'],
+  ] as const;
+
+  for (const [firstSide, firstOffset, secondSide, secondOffset] of corners) {
+    applyHostStyles(host, 'floating');
+    for (const side of ['top', 'right', 'bottom', 'left']) {
+      host.style.setProperty(side, 'auto', 'important');
+    }
+    host.style.setProperty(firstSide, firstOffset, 'important');
+    host.style.setProperty(secondSide, secondOffset, 'important');
+    if (host.parentElement !== document.body) {
+      (document.body ?? document.documentElement).appendChild(host);
+    }
+    host.style.setProperty('opacity', '1', 'important');
+    if (hostIsClickable(host)) return;
+  }
+}
+
+/** Where the chip should live: a verified composer action row, or a clear corner. */
 function mountLauncher(): void {
   const { host } = ensureLauncherHost();
   if (!launcherHost) return;
@@ -413,47 +676,83 @@ function mountLauncher(): void {
   const shouldShow = Boolean(match) && settings.showLauncher && !isOpen;
   if (!shouldShow) {
     host.remove();
-    launcherFor = null;
+    launcherPlacement = null;
     if (launcher) launcher.hidden = true;
     return;
   }
 
+  if (!match) {
+    host.remove();
+    launcherPlacement = null;
+    return;
+  }
+
   if (launcher) launcher.hidden = false;
+  const input = match.element;
+  const composer = composerFor(input);
 
-  if (settings.launcherMode === 'auto') {
-    // Stay in the action row we first landed in. Sites like Perplexity render
-    // the send button only after typing; re-resolving on that mutation would
-    // move the chip from the attach row to the send row mid-sentence.
-    const current = host.parentElement;
-    const hostRect = host.getBoundingClientRect();
-    const currentWorks = Boolean(
-      launcherFor === match?.element &&
-        current &&
-        current !== document.body &&
-        current.isConnected &&
-        host.classList.contains('gci-inline') &&
-        hostRect.width > 0 &&
-        hostRect.height > 0,
-    );
-    if (currentWorks) return;
+  if (launcherPlacement && launcherPlacement.composer !== composer) {
+    launcherPlacement = null;
+  }
 
-    const slot = match ? findLauncherSlot(match.element) : null;
-    if (slot) {
-      applyHostStyles(host, 'inline');
-      const needsMove =
-        host.parentElement !== slot.container ||
-        (slot.before ? host.nextElementSibling !== slot.before : host.nextElementSibling !== null);
-      if (needsMove) slot.container.insertBefore(host, slot.before);
-      launcherFor = match?.element ?? null;
+  if (settings.launcherMode === 'floating') {
+    if (
+      launcherPlacement?.mode === 'floating' &&
+      launcherPlacement.composer === composer &&
+      host.parentElement === document.body &&
+      hostIsClickable(host)
+    ) {
       return;
     }
+    placeFloating(host);
+    launcherPlacement = { composer, mode: 'floating', container: null, before: null };
+    return;
   }
 
-  applyHostStyles(host, 'floating');
-  if (host.parentElement !== document.body) {
-    (document.body ?? document.documentElement).appendChild(host);
+  // Keep a verified placement. If it is temporarily covered by a page menu or
+  // tooltip, retry in place instead of re-scoring and moving to the other side.
+  if (launcherPlacement?.mode === 'inline' && launcherPlacement.container) {
+    const { container, before } = launcherPlacement;
+    if (isPotentialSlot(container, input, composer)) {
+      if (host.parentElement === container) {
+        if (hostIsClickable(host)) return;
+        scheduleLauncherRetry();
+        return;
+      }
+      const nextBefore = normalizeBefore(container, before);
+      if (insertHostInSlot(host, container, nextBefore)) {
+        launcherPlacement.before = nextBefore;
+        return;
+      }
+      scheduleLauncherRetry();
+      return;
+    }
+    launcherPlacement = null;
+  } else if (launcherPlacement?.mode === 'floating') {
+    if (host.parentElement === document.body) {
+      if (hostIsClickable(host)) return;
+      scheduleLauncherRetry();
+      return;
+    }
+    placeFloating(host);
+    return;
   }
-  launcherFor = match?.element ?? null;
+
+  for (const candidate of collectLauncherCandidates(input)) {
+    if (!insertHostInSlot(host, candidate.container, candidate.before)) continue;
+    launcherPlacement = {
+      composer,
+      mode: 'inline',
+      container: candidate.container,
+      before: normalizeBefore(candidate.container, candidate.before),
+    };
+    recordHealth('launcher', `inline:${candidate.source}`, true);
+    return;
+  }
+
+  placeFloating(host);
+  launcherPlacement = { composer, mode: 'floating', container: null, before: null };
+  recordHealth('launcher', 'floating', false);
 }
 
 function updateLauncherVisibility(): void {
@@ -1133,6 +1432,7 @@ function observeComposer(): void {
   if (!box || typeof ResizeObserver === 'undefined') return;
   composerObserver = new ResizeObserver(() => {
     if (isOpen) layoutPanel();
+    else mountLauncher();
   });
   composerObserver.observe(box);
 }
@@ -1142,8 +1442,9 @@ function scheduleLayout(): void {
   layoutQueued = true;
   requestAnimationFrame(() => {
     layoutQueued = false;
-    // The launcher is inline now: the browser keeps it in place. Only the
-    // panel's floating fallback needs coordinates.
+    // Re-check the inline chip after a scroll/resize: its row may have moved,
+    // or a page overlay may now cover it.
+    if (!isOpen) mountLauncher();
     if (isOpen) {
       layoutPanel();
       updateTheme();
@@ -1334,7 +1635,19 @@ export function start(siteAdapter: SiteAdapter): void {
   window.addEventListener('keydown', onEscape, true);
   window.addEventListener('pointerdown', onDocumentPointerDown, true);
   window.addEventListener('click', onBoxButtonClick, true);
-  window.addEventListener('focusin', (event) => rememberFocusedComposer(composedTarget(event)), true);
+  window.addEventListener(
+    'focusin',
+    (event) => {
+      const target = composedTarget(event);
+      rememberFocusedComposer(target);
+      if (!isOpen) {
+        const previous = match?.element ?? null;
+        refreshMatch();
+        if (previous !== (match?.element ?? null)) mountLauncher();
+      }
+    },
+    true,
+  );
   window.addEventListener('scroll', scheduleLayout, { capture: true, passive: true });
   window.addEventListener('resize', scheduleLayout);
   window.addEventListener('pagehide', flushDraft);
@@ -1345,7 +1658,9 @@ export function start(siteAdapter: SiteAdapter): void {
 
   onSettingsChanged((next) => {
     const wrapChanged = next.wrapLines !== settings.wrapLines;
+    const placementChanged = next.launcherMode !== settings.launcherMode;
     settings = next;
+    if (placementChanged) launcherPlacement = null;
     syncControls();
     updateLauncherTitle();
     updateLauncherVisibility();

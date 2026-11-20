@@ -11,10 +11,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/deakR/code-inputin-aiwebapps/releases/latest"><img src="https://img.shields.io/badge/release-v1.1.1-blue.svg" alt="Latest Release: v1.1.1" /></a>
+  <a href="https://github.com/deakR/code-inputin-aiwebapps/releases/latest"><img src="https://img.shields.io/badge/release-v1.1.2-blue.svg" alt="Latest Release: v1.1.2" /></a>
   <a href="https://github.com/deakR/code-inputin-aiwebapps/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/manifest-v3-blueviolet.svg" alt="Manifest V3" />
-  <img src="https://img.shields.io/badge/tests-42%20passed-success.svg" alt="Playwright Tests" />
+  <img src="https://img.shields.io/badge/tests-43%20passed-success.svg" alt="Playwright Tests" />
   <img src="https://img.shields.io/badge/browsers-Chrome%20%7C%20Edge%20%7C%20Firefox%20%7C%20Brave%20%7C%20Arc-orange.svg" alt="Browser Support" />
 </p>
 
@@ -45,7 +45,7 @@ There are two placements:
 - **In the composer** (default): the chip is an ordinary child of the action row.
 - **Floating corner**: one deterministic viewport fallback for sites whose action row cannot take a child.
 
-The old `above-left` / `inside-left` / `inside-right` coordinate modes are gone. They were the source of the inconsistent placement.
+Before a row is accepted, the extension inserts the chip, forces layout, and **hit-tests its centre**. If ChatGPT's `composer-accessory` overlay (or any other page layer) is covering that pixel, the row is rejected and the next candidate is tried. Once a row is chosen it is locked to that composer: a page menu that briefly covers the chip only pauses it, it never moves the chip to the other side. The old `above-left` / `inside-left` / `inside-right` coordinate modes are gone — they were the source of the inconsistent placement.
 
 ---
 
@@ -56,8 +56,8 @@ The old `above-left` / `inside-left` / `inside-right` coordinate modes are gone.
 **No Node.js or build tools required.**
 
 1. **Download the pre-packaged zip**:
-   👉 **[Download code-input-for-ai-chat-1.1.1.zip](https://github.com/deakR/code-inputin-aiwebapps/releases/latest/download/code-input-for-ai-chat-1.1.1.zip)** (or get it from the [Releases](https://github.com/deakR/code-inputin-aiwebapps/releases) page).
-2. **Unzip** `code-input-for-ai-chat-1.1.1.zip` into a folder on your computer.
+   👉 **[Download code-input-for-ai-chat-1.1.2.zip](https://github.com/deakR/code-inputin-aiwebapps/releases/latest/download/code-input-for-ai-chat-1.1.2.zip)** (or get it from the [Releases](https://github.com/deakR/code-inputin-aiwebapps/releases) page).
+2. **Unzip** `code-input-for-ai-chat-1.1.2.zip` into a folder on your computer.
 3. **Load unpacked into your browser**:
 
 #### Chromium (Chrome, Edge, Brave, Arc, Opera)

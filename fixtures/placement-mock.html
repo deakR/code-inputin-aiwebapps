@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="gci-site" content="generic" />
+    <title>Placement mock — covered action row</title>
+    <link rel="stylesheet" href="site-mock.css" />
+    <style>
+      #composer {
+        position: relative;
+      }
+      .rows {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .attach-row {
+        position: relative;
+        z-index: 1;
+        width: 120px;
+      }
+      .trailing {
+        justify-content: flex-end;
+      }
+      /*
+       * The host's own accessory layer sits over the left row, exactly like
+       * ChatGPT's `composer-accessory`. A selector-only placement picks the
+       * left row and is unclickable; the extension must reject it by hit test.
+       */
+      .accessory {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 160px;
+        height: 100%;
+        z-index: 5;
+        background: rgba(0, 0, 0, 0.01);
+        pointer-events: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="conversation"></main>
+    <div id="composer">
+      <form class="composer-form">
+        <div
+          id="prompt-input"
+          class="editor"
+          contenteditable="true"
+          role="textbox"
+          aria-label="Message"
+          data-placeholder="Message"
+        ></div>
+        <div class="rows">
+          <div class="actions attach-row">
+            <button type="button" class="attach" aria-label="Add files">+</button>
+          </div>
+          <div class="actions trailing">
+            <button type="button" class="attach" aria-label="Dictate">mic</button>
+            <button type="button" class="attach" aria-label="Voice mode">wave</button>
+          </div>
+        </div>
+      </form>
+      <div class="accessory" aria-hidden="true"></div>
+    </div>
+    <script src="site-mock.js"></script>
+  </body>
+</html>

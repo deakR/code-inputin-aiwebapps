@@ -66,6 +66,24 @@ function promptSendDisabled(page: import('@playwright/test').Page): Promise<bool
   });
 }
 
+function launcherParentSlot(page: import('@playwright/test').Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const findHost = (root: Document | ShadowRoot): HTMLElement | null => {
+      const direct = root.querySelector<HTMLElement>('#gci-root');
+      if (direct) return direct;
+      for (const element of Array.from(root.querySelectorAll('*'))) {
+        const shadow = (element as HTMLElement).shadowRoot;
+        if (shadow) {
+          const found = findHost(shadow);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    return findHost(document)?.parentElement?.getAttribute('data-slot') ?? null;
+  });
+}
+
 function launcherSlot(page: import('@playwright/test').Page): Promise<boolean> {
   return page.evaluate(() => {
     const findHost = (root: Document | ShadowRoot): HTMLElement | null => {
@@ -91,6 +109,11 @@ for (const site of SITES) {
     await expect(launcher(page)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.dataset.gciAdapter)).toBe(site.adapter);
     await expect.poll(() => launcherSlot(page), { timeout: 3000 }).toBe(true);
+    if (site.adapter === 'chatgpt') {
+      // ChatGPT has separate attach and trailing rows; the chip must use the
+      // trailing row, not the covered left accessory.
+      await expect.poll(() => launcherParentSlot(page)).toBe('composer-trailing-actions');
+    }
 
     // The launcher is the host's own action-row child, not a viewport overlay.
     const placement = await page.evaluate(() => {
@@ -119,6 +142,8 @@ for (const site of SITES) {
     await openEditor(page);
     await expect(panel(page)).toBeVisible();
     await expect(page.locator('.gci-panel')).not.toHaveClass(/gci-docked/);
+    // Opening the editor is not an insert: the prompt box must stay untouched.
+    expect(await promptText(page)).toBe('');
 
     await cmContent(page).click();
     await writeSample(page);

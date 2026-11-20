@@ -17,6 +17,7 @@ import {
 
 function host(page: import('@playwright/test').Page): Promise<{
   inActions: boolean;
+  parentClass: string | null;
   position: string | null;
 } | null> {
   return page.evaluate(() => {
@@ -36,6 +37,7 @@ function host(page: import('@playwright/test').Page): Promise<{
     if (!element) return null;
     return {
       inActions: Boolean(element.parentElement?.classList.contains('actions')),
+      parentClass: element.parentElement?.className ?? null,
       position: getComputedStyle(element).position,
     };
   });
@@ -111,6 +113,28 @@ test('user can pick the real prompt box and the choice survives a reload', async
   await expect(panel(page)).toBeHidden();
   expect(await promptText(page)).toContain('def add(a, b):');
   expect(await page.locator('#decoy').innerText()).toBe('');
+});
+
+test('rejects a covered action row and uses the clear row', async ({ page }) => {
+  await page.goto(`${FIXTURES}/placement-mock.html`);
+  await expect(launcher(page)).toBeVisible();
+
+  // The left attach row is covered by an overlay. A selector-only placement
+  // chooses it; the hit test must reject it and use the clear trailing row.
+  await expect
+    .poll(async () => (await host(page))?.parentClass?.includes('trailing') ?? false, {
+      timeout: 5000,
+    })
+    .toBe(true);
+  const placement = await host(page);
+  expect(placement?.position).toBe('static');
+  expect(placement?.parentClass).toContain('actions');
+
+  await openEditor(page);
+  await writeSample(page);
+  await insertButton(page).click();
+  await expect(panel(page)).toBeHidden();
+  expect(await promptText(page)).toContain('def add(a, b):');
 });
 
 test('popup diagnostics reports the active adapter and prompt-box state', async ({ context, page }) => {
