@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/deakR/code-inputin-aiwebapps/releases/latest"><img src="https://img.shields.io/badge/release-v1.1.0-blue.svg" alt="Latest Release: v1.1.0" /></a>
+  <a href="https://github.com/deakR/code-inputin-aiwebapps/releases/latest"><img src="https://img.shields.io/badge/release-v1.1.1-blue.svg" alt="Latest Release: v1.1.1" /></a>
   <a href="https://github.com/deakR/code-inputin-aiwebapps/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/manifest-v3-blueviolet.svg" alt="Manifest V3" />
   <img src="https://img.shields.io/badge/tests-42%20passed-success.svg" alt="Playwright Tests" />
@@ -56,8 +56,8 @@ The old `above-left` / `inside-left` / `inside-right` coordinate modes are gone.
 **No Node.js or build tools required.**
 
 1. **Download the pre-packaged zip**:
-   👉 **[Download code-input-for-ai-chat-1.1.0.zip](https://github.com/deakR/code-inputin-aiwebapps/releases/latest/download/code-input-for-ai-chat-1.1.0.zip)** (or get it from the [Releases](https://github.com/deakR/code-inputin-aiwebapps/releases) page).
-2. **Unzip** `code-input-for-ai-chat-1.1.0.zip` into a folder on your computer.
+   👉 **[Download code-input-for-ai-chat-1.1.1.zip](https://github.com/deakR/code-inputin-aiwebapps/releases/latest/download/code-input-for-ai-chat-1.1.1.zip)** (or get it from the [Releases](https://github.com/deakR/code-inputin-aiwebapps/releases) page).
+2. **Unzip** `code-input-for-ai-chat-1.1.1.zip` into a folder on your computer.
 3. **Load unpacked into your browser**:
 
 #### Chromium (Chrome, Edge, Brave, Arc, Opera)
