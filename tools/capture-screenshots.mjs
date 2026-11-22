@@ -142,7 +142,7 @@ try {
   let extId = '';
   for (const chunk of dump.split('"id"')) {
     const id = chunk.match(/^\s*:\s*"([a-p]{32})"/)?.[1];
-    if (id && chunk.slice(0, 500).includes('Code Input for AI Chat')) {
+    if (id && chunk.slice(0, 500).includes('Inset')) {
       extId = id;
       break;
     }

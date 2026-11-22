@@ -13,7 +13,7 @@ export const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const extensionPath = path.join(root, 'dist');
 export const FIXTURES = 'http://127.0.0.1:5179/fixtures';
 export const FIXTURE_PAGE = `${FIXTURES}/gemini-mock.html`;
-export const EXTENSION_NAME = 'Code Input for AI Chat';
+export const EXTENSION_NAME = 'Inset';
 
 export const test = base.extend<{ context: BrowserContext; page: Page }>({
   context: async ({}, use) => {

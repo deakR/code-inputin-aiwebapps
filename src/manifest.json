@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Code Input for AI Chat",
-  "short_name": "Code Input",
+  "name": "Inset",
+  "short_name": "Inset",
   "version": "1.1.2",
-  "description": "Write code in AI chat boxes with syntax highlighting, auto-indentation and line numbers.",
+  "description": "A real code editor inside AI chat. Syntax highlighting, auto-indent and line numbers in any prompt box.",
   "permissions": ["storage", "clipboardWrite"],
   "browser_specific_settings": {
     "gecko": {
@@ -24,7 +24,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "Code Input for AI Chat",
+    "default_title": "Inset",
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

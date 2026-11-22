@@ -1,7 +1,7 @@
-# Code Input for AI Chat
+# Inset
 
 <p align="center">
-  <img src="docs/images/logo.png" width="128" height="128" alt="Code Input for AI Chat logo" />
+  <img src="docs/images/logo.png" width="128" height="128" alt="Inset logo" />
 </p>
 
 <p align="center">
@@ -10,13 +10,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/deakR/code-inputin-aiwebapps/releases/latest"><img src="https://img.shields.io/badge/release-v1.1.2-blue.svg" alt="Latest Release" /></a>
-  <a href="https://github.com/deakR/code-inputin-aiwebapps/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://github.com/deakR/inset/releases/latest"><img src="https://img.shields.io/badge/release-v1.1.2-blue.svg" alt="Latest Release" /></a>
+  <a href="https://github.com/deakR/inset/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/manifest-v3-blueviolet.svg" alt="Manifest V3" />
-  <img src="https://img.shields.io/badge/tests-44%20passed-success.svg" alt="Playwright Tests" />
 </p>
 
-![Code editor docked into the Gemini prompt box](docs/images/gemini-code-editor-docked.png)
+<p align="center">
+  <img src="docs/images/inset-in-action.png" alt="Inset running in Gemini, ChatGPT, Claude and DeepSeek" width="820" />
+</p>
+<p align="center"><sub>The same editor, inside four different chat apps.</sub></p>
 
 ## Highlights
 
@@ -37,15 +39,15 @@ Chrome / Edge / Brave / Arc 114+ · Firefox 140+ · Manifest V3
 
 **Quick install (no build tools):**
 
-1. Download the [latest zip](https://github.com/deakR/code-inputin-aiwebapps/releases/latest/download/code-input-for-ai-chat-1.1.2.zip) and unzip it.
+1. Download the [latest release](https://github.com/deakR/inset/releases/latest) and unzip it.
 2. Chromium: open `chrome://extensions`, enable **Developer mode**, click **Load unpacked** and select the folder.
 3. Firefox: open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on…** and pick `manifest.json`.
 
 **From source:**
 
 ```bash
-git clone https://github.com/deakR/code-inputin-aiwebapps.git
-cd code-inputin-aiwebapps
+git clone https://github.com/deakR/inset.git
+cd inset
 npm install
 npm run build   # then load dist/ as above
 ```

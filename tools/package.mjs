@@ -3,8 +3,8 @@
  *
  *   node tools/package.mjs
  *
- *   release/code-input-for-ai-chat-<version>.zip         upload to Edge Add-ons / AMO
- *   release/code-input-for-ai-chat-<version>-source.zip  what AMO asks for when the
+ *   release/inset-<version>.zip         upload to Edge Add-ons / AMO
+ *   release/inset-<version>-source.zip  what AMO asks for when the
  *                                                   submitted code is bundled
  *
  * `build/` is the store flavour of the extension (no source maps, no fixture
