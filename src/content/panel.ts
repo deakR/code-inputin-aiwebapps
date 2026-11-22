@@ -404,9 +404,11 @@ function buildLauncher(root: ShadowRoot): void {
   applyAdapterTheme();
 }
 
+type LauncherEdge = 'start' | 'end';
+
 interface LauncherSlotCandidate {
   container: HTMLElement;
-  before: Element | null;
+  edge: LauncherEdge;
   score: number;
   source: string;
 }
@@ -416,11 +418,22 @@ interface LauncherPlacement {
   composer: HTMLElement;
   mode: 'inline' | 'floating';
   container: HTMLElement | null;
-  before: Element | null;
+  /**
+   * The end of the row the chip owns. Rows are laid out against one edge of the
+   * composer; pinning the chip to that same edge means host controls that come
+   * and go at the other end (Gemini's mic/send swap, ChatGPT's accessory) can
+   * never drag it sideways.
+   */
+  edge: LauncherEdge;
 }
 
 let launcherPlacement: LauncherPlacement | null = null;
 let launcherRetryTimer: number | undefined;
+/** When the locked row stopped being visible, so a real layout change can win. */
+let launcherHiddenSince = 0;
+let floatingRecoveryTimer: number | undefined;
+/** One automatic "is there an inline row now?" probe after a fallback. */
+let floatingRecoveryDone = false;
 
 /**
  * A page menu or tooltip can cover the chip for a second without the chip's
@@ -439,22 +452,64 @@ function composerFor(input: HTMLElement): HTMLElement {
   return findComposerBox(input) ?? findInputContainer(input);
 }
 
-function firstChildNotOurs(container: HTMLElement): Element | null {
-  return (
-    Array.from(container.children).find(
-      (child) => child !== launcherHost && !child.id.startsWith('gci-'),
-    ) ?? null
+function isOurNode(node: Element | null): boolean {
+  return Boolean(node && (node === launcherHost || node.id.startsWith('gci-')));
+}
+
+/** Visible children the host page owns. Our chip is not part of the row's geometry. */
+function rowChildren(container: HTMLElement): Element[] {
+  return Array.from(container.children).filter(
+    (child) => !isOurNode(child) && child.getClientRects().length > 0,
   );
 }
 
 /**
- * A stable insertion point. The pointer can be null when the whole row is
- * appended to; in that case the chip is placed before the first host control.
+ * The end of a row that is anchored to the composer. A right-aligned action row
+ * has empty space on its left and none on its right; a left-aligned row is the
+ * mirror image. Placing the chip on the anchored side keeps it still while
+ * buttons grow the row away from that edge. Ties fall back to which half of the
+ * composer the row occupies.
  */
-function normalizeBefore(container: HTMLElement, before: Element | null): Element | null {
-  if (before === launcherHost) return launcherHost?.nextElementSibling ?? null;
-  if (before && before.parentElement === container) return before;
-  return firstChildNotOurs(container);
+function stableEdge(container: HTMLElement, composer: HTMLElement): LauncherEdge {
+  const style = getComputedStyle(container);
+  const horizontal = !style.display.includes('flex') || style.flexDirection.startsWith('row');
+  const children = rowChildren(container);
+  const rect = container.getBoundingClientRect();
+
+  if (horizontal && children.length > 0) {
+    const first = children[0].getBoundingClientRect();
+    const last = children[children.length - 1].getBoundingClientRect();
+    const padLeft = parseFloat(style.paddingLeft) || 0;
+    const padRight = parseFloat(style.paddingRight) || 0;
+    const leftGap = first.left - rect.left - padLeft;
+    const rightGap = rect.right - padRight - last.right;
+    if (leftGap > rightGap + 8) return 'end';
+    if (rightGap > leftGap + 8) return 'start';
+  }
+
+  const box = composer.getBoundingClientRect();
+  return rect.left + rect.width / 2 >= box.left + box.width / 2 ? 'end' : 'start';
+}
+
+/** Put the chip at its stable end, in flow, with the browser doing the layout. */
+function insertAtEdge(host: HTMLElement, container: HTMLElement, edge: LauncherEdge): void {
+  if (edge === 'end') {
+    container.appendChild(host);
+    return;
+  }
+  container.insertBefore(host, rowChildren(container)[0] ?? null);
+}
+
+function isAtEdge(host: HTMLElement, container: HTMLElement, edge: LauncherEdge): boolean {
+  if (host.parentElement !== container) return false;
+  let sibling = edge === 'start' ? host.previousElementSibling : host.nextElementSibling;
+  while (sibling) {
+    // A hidden anchor/sentinel at the end of the row does not count as a control
+    // the chip must stay ahead of.
+    if (!isOurNode(sibling) && sibling.getClientRects().length > 0) return false;
+    sibling = edge === 'start' ? sibling.previousElementSibling : sibling.nextElementSibling;
+  }
+  return true;
 }
 
 function isPotentialSlot(
@@ -501,16 +556,16 @@ function addSlotCandidate(
   container: HTMLElement | null,
   input: HTMLElement,
   composer: HTMLElement,
-  before: Element | null,
   score: number,
   source: string,
+  edge?: LauncherEdge,
 ): void {
   if (!isPotentialSlot(container, input, composer)) return;
   const current = candidates.get(container);
   if (current && current.score >= score) return;
   candidates.set(container, {
     container,
-    before: normalizeBefore(container, before),
+    edge: edge ?? stableEdge(container, composer),
     score,
     source,
   });
@@ -530,14 +585,14 @@ function collectLauncherCandidates(input: HTMLElement): LauncherSlotCandidate[] 
 
   const custom = adapter.launcherSlot?.(input);
   if (custom) {
-    addSlotCandidate(candidates, custom.container, input, composer, custom.before, 120, 'adapter');
+    addSlotCandidate(candidates, custom.container, input, composer, 120, 'adapter', custom.edge);
   }
 
   const send = findSendButton({ includeDisabled: true });
   if (send) {
     let node: HTMLElement | null = send.parentElement;
     for (let depth = 0; node && depth < 4; depth += 1, node = node.parentElement) {
-      addSlotCandidate(candidates, node, input, composer, send, 85 - depth * 8, 'send');
+      addSlotCandidate(candidates, node, input, composer, 85 - depth * 8, 'send');
     }
   }
 
@@ -545,9 +600,7 @@ function collectLauncherCandidates(input: HTMLElement): LauncherSlotCandidate[] 
   if (attach) {
     let node: HTMLElement | null = attach.parentElement;
     for (let depth = 0; node && depth < 4; depth += 1, node = node.parentElement) {
-      let before = attach.nextElementSibling;
-      if (before && before === launcherHost) before = before.nextElementSibling;
-      addSlotCandidate(candidates, node, input, composer, before, 60 - depth * 7, 'attach');
+      addSlotCandidate(candidates, node, input, composer, 60 - depth * 7, 'attach');
     }
   }
 
@@ -560,7 +613,7 @@ function collectLauncherCandidates(input: HTMLElement): LauncherSlotCandidate[] 
     '[class*="action-row" i]',
   ]) {
     for (const node of composer.querySelectorAll<HTMLElement>(selector)) {
-      addSlotCandidate(candidates, node, input, composer, null, 75, 'labelled-row');
+      addSlotCandidate(candidates, node, input, composer, 75, 'labelled-row');
     }
   }
 
@@ -571,7 +624,7 @@ function collectLauncherCandidates(input: HTMLElement): LauncherSlotCandidate[] 
     if (!node.querySelector('button, [role="button"], input[type="submit"]')) continue;
     const rect = node.getBoundingClientRect();
     if (rect.height > 64 || rect.width < 60) continue;
-    addSlotCandidate(candidates, node, input, composer, null, 35, 'button-row');
+    addSlotCandidate(candidates, node, input, composer, 35, 'button-row');
   }
 
   return [...candidates.values()].sort((a, b) => b.score - a.score).slice(0, 12);
@@ -610,28 +663,41 @@ function hostIsClickable(host: HTMLElement): boolean {
  * A covered candidate is removed and the next one is tried. This is the check
  * that catches ChatGPT's `composer-accessory` overlay, which is invisible to
  * selector-based logic and swallowed clicks on the left-hand attach row.
+ *
+ * This runs only when a row is first chosen. A locked placement is never
+ * re-tested, so a tooltip or ripple cannot evict it later.
  */
 function insertHostInSlot(
   host: HTMLElement,
   container: HTMLElement,
-  before: Element | null,
+  edge: LauncherEdge,
+  composer: HTMLElement,
 ): boolean {
   try {
     applyHostStyles(host, 'inline');
     host.style.setProperty('opacity', '0', 'important');
-    container.insertBefore(host, normalizeBefore(container, before));
+    insertAtEdge(host, container, edge);
 
     const hostRect = host.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
-    const outside =
+    const composerRect = composer.getBoundingClientRect();
+    const slack = 4;
+    const outsideRow =
       hostRect.width < 8 ||
       hostRect.height < 8 ||
-      hostRect.left < containerRect.left - 2 ||
-      hostRect.right > containerRect.right + 2 ||
-      hostRect.top < containerRect.top - 2 ||
-      hostRect.bottom > containerRect.bottom + 2;
+      hostRect.left < containerRect.left - slack ||
+      hostRect.right > containerRect.right + slack ||
+      hostRect.top < containerRect.top - slack ||
+      hostRect.bottom > containerRect.bottom + slack;
+    // A tight row may legitimately hug the chip; what matters is that the chip
+    // is still inside the composer and is the element receiving its own clicks.
+    const outsideComposer =
+      hostRect.left < composerRect.left - 12 ||
+      hostRect.right > composerRect.right + 12 ||
+      hostRect.top < composerRect.top - 160 ||
+      hostRect.bottom > composerRect.bottom + 160;
 
-    if (outside || !hostIsClickable(host)) {
+    if (outsideRow || outsideComposer || !hostIsClickable(host)) {
       host.remove();
       return false;
     }
@@ -644,31 +710,46 @@ function insertHostInSlot(
   }
 }
 
-/** The fallback picks the first viewport corner whose pixels are not covered. */
+/**
+ * The floating fallback is one deterministic corner and never chases overlays.
+ * Probing four corners used to make the chip hop to another corner whenever a
+ * page toast happened to cover the previous one.
+ */
 function placeFloating(host: HTMLElement): void {
-  const corners = [
-    ['right', '20px', 'bottom', '20px'],
-    ['left', '20px', 'bottom', '20px'],
-    ['right', '20px', 'top', '20px'],
-    ['left', '20px', 'top', '20px'],
-  ] as const;
-
-  for (const [firstSide, firstOffset, secondSide, secondOffset] of corners) {
-    applyHostStyles(host, 'floating');
-    for (const side of ['top', 'right', 'bottom', 'left']) {
-      host.style.setProperty(side, 'auto', 'important');
-    }
-    host.style.setProperty(firstSide, firstOffset, 'important');
-    host.style.setProperty(secondSide, secondOffset, 'important');
-    if (host.parentElement !== document.body) {
-      (document.body ?? document.documentElement).appendChild(host);
-    }
-    host.style.setProperty('opacity', '1', 'important');
-    if (hostIsClickable(host)) return;
+  applyHostStyles(host, 'floating');
+  host.style.setProperty('opacity', '1', 'important');
+  if (host.parentElement !== document.body) {
+    (document.body ?? document.documentElement).appendChild(host);
   }
 }
 
-/** Where the chip should live: a verified composer action row, or a clear corner. */
+function sameComposer(a: HTMLElement, b: HTMLElement): boolean {
+  return a === b || a.contains(b) || b.contains(a);
+}
+
+/**
+ * A composer can be mid-animation when the first placement is attempted, which
+ * sends the chip to the corner even though the action row becomes usable a
+ * moment later. Probe inline once more; if there is still no row, stay put.
+ */
+function scheduleFloatingRecovery(): void {
+  if (floatingRecoveryDone) return;
+  floatingRecoveryDone = true;
+  floatingRecoveryTimer = window.setTimeout(() => {
+    floatingRecoveryTimer = undefined;
+    if (isOpen || launcherPlacement?.mode !== 'floating') return;
+    launcherPlacement = null;
+    mountLauncher();
+  }, 1200);
+}
+
+function cancelFloatingRecovery(): void {
+  if (!floatingRecoveryTimer) return;
+  window.clearTimeout(floatingRecoveryTimer);
+  floatingRecoveryTimer = undefined;
+}
+
+/** Where the chip should live: a locked composer action row, or a clear corner. */
 function mountLauncher(): void {
   const { host } = ensureLauncherHost();
   if (!launcherHost) return;
@@ -677,6 +758,7 @@ function mountLauncher(): void {
   if (!shouldShow) {
     host.remove();
     launcherPlacement = null;
+    launcherHiddenSince = 0;
     if (launcher) launcher.hidden = true;
     return;
   }
@@ -691,68 +773,75 @@ function mountLauncher(): void {
   const input = match.element;
   const composer = composerFor(input);
 
-  if (launcherPlacement && launcherPlacement.composer !== composer) {
+  // A rebuilt box often contains the old one (or vice versa). Only a genuinely
+  // different composer invalidates the row and its stable edge.
+  if (launcherPlacement && !sameComposer(launcherPlacement.composer, composer)) {
     launcherPlacement = null;
+    launcherHiddenSince = 0;
+    floatingRecoveryDone = false;
   }
 
   if (settings.launcherMode === 'floating') {
-    if (
-      launcherPlacement?.mode === 'floating' &&
-      launcherPlacement.composer === composer &&
-      host.parentElement === document.body &&
-      hostIsClickable(host)
-    ) {
-      return;
+    if (launcherPlacement?.mode !== 'floating' || host.parentElement !== document.body) {
+      placeFloating(host);
     }
-    placeFloating(host);
-    launcherPlacement = { composer, mode: 'floating', container: null, before: null };
+    launcherPlacement = { composer, mode: 'floating', container: null, edge: 'end' };
     return;
   }
 
-  // Keep a verified placement. If it is temporarily covered by a page menu or
-  // tooltip, retry in place instead of re-scoring and moving to the other side.
+  // Keep a verified placement. The browser already keeps an inline chip glued to
+  // its row; re-running candidate scoring on every mutation is what let a
+  // transient overlay or a half-rendered row move the chip to the other side.
   if (launcherPlacement?.mode === 'inline' && launcherPlacement.container) {
-    const { container, before } = launcherPlacement;
-    if (isPotentialSlot(container, input, composer)) {
-      if (host.parentElement === container) {
-        if (hostIsClickable(host)) return;
+    const { container, edge } = launcherPlacement;
+    if (!container.isConnected) {
+      launcherPlacement = null;
+      launcherHiddenSince = 0;
+    } else if (container.getClientRects().length === 0) {
+      // The site hides the row while a menu is open or the composer collapses.
+      // Stay with it for a beat; only a lasting hide counts as a real change.
+      if (!launcherHiddenSince) launcherHiddenSince = Date.now();
+      if (Date.now() - launcherHiddenSince < 2000) {
         scheduleLauncherRetry();
         return;
       }
-      const nextBefore = normalizeBefore(container, before);
-      if (insertHostInSlot(host, container, nextBefore)) {
-        launcherPlacement.before = nextBefore;
-        return;
+      launcherPlacement = null;
+      launcherHiddenSince = 0;
+    } else {
+      launcherHiddenSince = 0;
+      // Host controls are added and removed around the chip. Put it back on the
+      // same stable edge instead of re-scoring; this is the only move allowed.
+      if (host.parentElement !== container || !isAtEdge(host, container, edge)) {
+        insertAtEdge(host, container, edge);
       }
-      scheduleLauncherRetry();
+      launcherPlacement.composer = composer;
       return;
     }
-    launcherPlacement = null;
   } else if (launcherPlacement?.mode === 'floating') {
-    if (host.parentElement === document.body) {
-      if (hostIsClickable(host)) return;
-      scheduleLauncherRetry();
-      return;
-    }
+    if (host.parentElement === document.body) return;
     placeFloating(host);
     return;
   }
 
   for (const candidate of collectLauncherCandidates(input)) {
-    if (!insertHostInSlot(host, candidate.container, candidate.before)) continue;
+    if (!insertHostInSlot(host, candidate.container, candidate.edge, composer)) continue;
     launcherPlacement = {
       composer,
       mode: 'inline',
       container: candidate.container,
-      before: normalizeBefore(candidate.container, candidate.before),
+      edge: candidate.edge,
     };
+    launcherHiddenSince = 0;
+    floatingRecoveryDone = false;
+    cancelFloatingRecovery();
     recordHealth('launcher', `inline:${candidate.source}`, true);
     return;
   }
 
   placeFloating(host);
-  launcherPlacement = { composer, mode: 'floating', container: null, before: null };
+  launcherPlacement = { composer, mode: 'floating', container: null, edge: 'end' };
   recordHealth('launcher', 'floating', false);
+  scheduleFloatingRecovery();
 }
 
 function updateLauncherVisibility(): void {
@@ -1660,7 +1749,12 @@ export function start(siteAdapter: SiteAdapter): void {
     const wrapChanged = next.wrapLines !== settings.wrapLines;
     const placementChanged = next.launcherMode !== settings.launcherMode;
     settings = next;
-    if (placementChanged) launcherPlacement = null;
+    if (placementChanged) {
+      launcherPlacement = null;
+      launcherHiddenSince = 0;
+      floatingRecoveryDone = false;
+      cancelFloatingRecovery();
+    }
     syncControls();
     updateLauncherTitle();
     updateLauncherVisibility();

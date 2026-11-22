@@ -14,7 +14,7 @@
   <a href="https://github.com/deakR/code-inputin-aiwebapps/releases/latest"><img src="https://img.shields.io/badge/release-v1.1.2-blue.svg" alt="Latest Release: v1.1.2" /></a>
   <a href="https://github.com/deakR/code-inputin-aiwebapps/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/manifest-v3-blueviolet.svg" alt="Manifest V3" />
-  <img src="https://img.shields.io/badge/tests-43%20passed-success.svg" alt="Playwright Tests" />
+  <img src="https://img.shields.io/badge/tests-44%20passed-success.svg" alt="Playwright Tests" />
   <img src="https://img.shields.io/badge/browsers-Chrome%20%7C%20Edge%20%7C%20Firefox%20%7C%20Brave%20%7C%20Arc-orange.svg" alt="Browser Support" />
 </p>
 
@@ -38,14 +38,15 @@ The editor keeps the site's own look: the code area follows the composer, the co
 
 ## Why the launcher feels consistent
 
-The launcher is **not** a floating button positioned with JavaScript coordinates anymore. It is inserted into the host composer's own action row, next to the send/attach controls. The browser lays it out, so it cannot be left behind when the composer grows, moves, or animates.
+The launcher is **not** a floating button positioned with JavaScript coordinates anymore. It is inserted into the host composer's own action row and pinned to the **stable outer edge** of that row — the end the host itself anchors to the composer box (the right edge for Gemini's trailing row). Controls the site adds and removes in that row (Gemini swaps its mic/send controls as you type) grow the row away from that edge instead of dragging the chip sideways. The browser lays it out, so it cannot be left behind when the composer grows, moves, or animates.
 
 There are two placements:
 
-- **In the composer** (default): the chip is an ordinary child of the action row.
-- **Floating corner**: one deterministic viewport fallback for sites whose action row cannot take a child.
+- **In the composer** (default): the chip is an ordinary in-flow child of the action row, pinned to its stable edge.
+- **Floating corner**: one deterministic viewport fallback for sites whose action row cannot take a child. It stays in that corner; it no longer hunts for another one when a page toast covers it.
 
-Before a row is accepted, the extension inserts the chip, forces layout, and **hit-tests its centre**. If ChatGPT's `composer-accessory` overlay (or any other page layer) is covering that pixel, the row is rejected and the next candidate is tried. Once a row is chosen it is locked to that composer: a page menu that briefly covers the chip only pauses it, it never moves the chip to the other side. The old `above-left` / `inside-left` / `inside-right` coordinate modes are gone — they were the source of the inconsistent placement.
+Before a row is accepted, the extension inserts the chip, forces layout, and **hit-tests its centre**. If ChatGPT's `composer-accessory` overlay (or any other page layer) is covering that pixel, the row is rejected and the next candidate is tried. Once a row is chosen it is locked to that composer: a page menu that briefly covers the chip only pauses it, it never re-scores the page or moves the chip to the other side. If the host rebuilds the row's children, the chip is re-attached to the same edge. It only looks for a new row when the row itself is gone (or has stayed hidden long enough to be a real layout change). If the composer was still settling during the first attempt and the chip had to fall back to the corner, it probes the action row once more and returns inline when the row is ready. The old `above-left` / `inside-left` / `inside-right` coordinate modes are gone — they were the source of the inconsistent placement.
+
 
 ---
 
@@ -109,7 +110,7 @@ The adapter is a set of **hints**, not the only detection path. See [Resilient d
 
 ## Key Features
 
-- **Inline composer launcher**: a small `<>` chip in the site's own action row. No viewport coordinates, no follow loop, no slide animation.
+- **Inline composer launcher**: a small `<>` chip pinned to the stable edge of the site's own action row. No viewport coordinates, no follow loop, no slide animation.
 - **Resilient detection**: adapter hints → user-picked element → last focused editable → generic candidate scoring. A redesigned page degrades to a usable fallback instead of breaking.
 - **Manual repair**: if a site changes too much, the popup's **Pick prompt box** action lets the user click the real input once. The selection is stored locally and survives reloads.
 - **Draft autosave**: unsaved code is kept in `storage.local` and restored after a reload. It is cleared after a successful insert.

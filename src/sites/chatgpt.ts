@@ -36,11 +36,12 @@ export const chatgptAdapter: SiteAdapter = {
     // The left "Add files" accessory is covered by ChatGPT's own
     // `composer-accessory` overlay, so a chip placed there cannot be clicked.
     // The trailing action row is horizontal, stable and above that overlay.
+    // Pin to its outer (right) edge so ChatGPT's own controls coming and going
+    // at the left of the row cannot push the chip around.
     const composer = input.closest('form') ?? input.closest('[data-testid="composer"]');
     const trailing = composer?.querySelector<HTMLElement>('[data-slot="composer-trailing-actions"]');
     const rect = trailing?.getBoundingClientRect();
     if (!trailing || !rect || rect.width === 0 || rect.height === 0) return null;
-    const before = Array.from(trailing.children).find((child) => !child.id.startsWith('gci-')) ?? null;
-    return { container: trailing, before };
+    return { container: trailing, edge: 'end' };
   },
 };

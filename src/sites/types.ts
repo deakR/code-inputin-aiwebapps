@@ -19,7 +19,11 @@ export interface ComposerShape {
 
 export interface AdapterSlot {
   container: HTMLElement;
-  before: Element | null;
+  /**
+   * The stable end of the row. The chip is pinned there, so host controls that
+   * appear and disappear at the other end cannot drag it sideways.
+   */
+  edge: 'start' | 'end';
 }
 
 export interface SiteAdapter {

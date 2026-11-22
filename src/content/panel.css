@@ -103,16 +103,6 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
 }
 
-/* Once placed, follow Gemini's layout with a slide instead of a jump. */
-.gci-launcher.gci-placed {
-  transition:
-    top 0.14s ease,
-    left 0.14s ease,
-    opacity 0.15s ease,
-    color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
 .gci-launcher svg {
   width: 14px;
   height: 14px;
@@ -448,7 +438,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gci-launcher,
-  .gci-launcher.gci-placed,
   .gci-toast {
     transition: none;
   }

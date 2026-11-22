@@ -166,6 +166,49 @@ test('keeps the chip in the composer when the box grows on its own', async ({ pa
     .toBe(true);
 });
 
+test('keeps the chip pinned when Gemini swaps controls in its action row', async ({ page }) => {
+  await page.goto(`${FIXTURES}/gemini-mock.html`);
+  await expect(launcher(page)).toBeVisible();
+  await expect.poll(() => launcherInComposer(page), { timeout: 3000 }).toBe(true);
+
+  const chipX = () =>
+    page.locator('#gci-root').evaluate((el) => Math.round(el.getBoundingClientRect().x));
+  const startX = await chipX();
+
+  // Gemini swaps microphone and send controls in the trailing row as the
+  // prompt goes from empty to typed. Those controls grow the row leftwards,
+  // away from the edge the chip owns; the chip itself must not move.
+  for (let i = 0; i < 3; i += 1) {
+    await page.evaluate(() => {
+      const trailing = document.querySelector('.trailing-actions-wrapper');
+      const send = document.querySelector('.send-button');
+      if (!trailing || !send) return;
+      const mic = document.createElement('button');
+      mic.className = 'mic-probe';
+      mic.setAttribute('aria-label', 'Microphone');
+      mic.textContent = 'mic';
+      trailing.insertBefore(mic, send);
+    });
+    await page.waitForTimeout(450);
+    expect(await chipX()).toBe(startX);
+
+    await page.evaluate(() => document.querySelector('.mic-probe')?.remove());
+    await page.waitForTimeout(450);
+    expect(await chipX()).toBe(startX);
+  }
+
+  // The host rebuilding the row's children must not re-score the page or move
+  // the chip to another row; it goes back to the same stable edge.
+  await page.evaluate(() => {
+    const trailing = document.querySelector('.trailing-actions-wrapper');
+    const send = document.querySelector('.send-button');
+    if (!trailing || !send) return;
+    trailing.replaceChildren(send.cloneNode(true));
+  });
+  await expect.poll(() => launcherInComposer(page), { timeout: 3000 }).toBe(true);
+  await expect.poll(async () => (await chipX()) === startX, { timeout: 3000 }).toBe(true);
+});
+
 /* ── tests ─────────────────────────────────────────────────────────────── */
 
 test('shows the launcher inside the prompt box action row', async ({ page }) => {

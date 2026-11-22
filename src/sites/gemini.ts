@@ -50,19 +50,17 @@ export const geminiAdapter: SiteAdapter = {
   launcherSlot(input) {
     const box = input.closest('.text-input-field');
     if (!(box instanceof HTMLElement)) return null;
-    // Real Gemini puts the upload/mode/dictation controls in these rows. Use
-    // the trailing row, which is horizontal; appending to the narrow leading
-    // wrapper would stack the chip under the upload button.
-    for (const selector of ['.trailing-actions-wrapper', '.leading-actions-wrapper']) {
-      const container = box.querySelector<HTMLElement>(selector);
-      const rect = container?.getBoundingClientRect();
-      if (container && rect && rect.width > 0 && rect.height > 0) {
-        const before = Array.from(container.children).find(
-          (child) => !child.id.startsWith('gci-'),
-        ) ?? null;
-        return { container, before };
-      }
-    }
-    return null;
+    // Real Gemini swaps the mic/send controls inside the trailing row as the
+    // prompt goes from empty to typed. The row is anchored to the right edge
+    // of the box, so the chip is pinned to that same outer edge: controls added
+    // at the other end grow the row leftwards instead of dragging the chip.
+    //
+    // Deliberately no `.leading-actions-wrapper` fallback. That wrapper is on the
+    // far left; placing there while the trailing row is briefly unmeasurable is
+    // what makes the chip jump across the whole composer.
+    const container = box.querySelector<HTMLElement>('.trailing-actions-wrapper');
+    const rect = container?.getBoundingClientRect();
+    if (!container || !rect || rect.width === 0 || rect.height === 0) return null;
+    return { container, edge: 'end' };
   },
 };
