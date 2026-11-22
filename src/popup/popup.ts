@@ -1,6 +1,6 @@
 import { LANGUAGE_META } from '../composer/language-meta';
 import { ext } from '../shared/ext';
-import { loadSettings, saveSettings, type LauncherMode } from '../shared/settings';
+import { loadSettings, saveSettings, type LauncherMode, type PanelMode } from '../shared/settings';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -112,10 +112,12 @@ async function main(): Promise<void> {
 
   const launcher = $<HTMLInputElement>('launcher');
   const placement = $<HTMLSelectElement>('placement');
+  const editorPlacement = $<HTMLSelectElement>('editor-placement');
   const shortcut = $<HTMLSelectElement>('shortcut');
 
   launcher.checked = settings.showLauncher;
   placement.value = settings.launcherMode;
+  editorPlacement.value = settings.panelMode;
 
   // On macOS, display ⌘ and ⌥ instead of Ctrl and Alt in the dropdown options
   if (isMac()) {
@@ -141,6 +143,9 @@ async function main(): Promise<void> {
   launcher.addEventListener('change', () => void saveSettings({ showLauncher: launcher.checked }));
   placement.addEventListener('change', () =>
     void saveSettings({ launcherMode: placement.value as LauncherMode }),
+  );
+  editorPlacement.addEventListener('change', () =>
+    void saveSettings({ panelMode: editorPlacement.value as PanelMode }),
   );
   shortcut.addEventListener('change', () => void saveSettings({ shortcut: shortcut.value }));
 

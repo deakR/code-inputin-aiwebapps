@@ -141,7 +141,13 @@ for (const site of SITES) {
 
     await openEditor(page);
     await expect(panel(page)).toBeVisible();
-    await expect(page.locator('.gci-panel')).not.toHaveClass(/gci-docked/);
+    // Every mocked composer is a vertical box with a text row of its own, so
+    // Auto docks there. Copilot is the shadow-DOM fallback and stays floating.
+    if (site.adapter === 'copilot') {
+      await expect(page.locator('.gci-panel')).not.toHaveClass(/gci-docked/);
+    } else {
+      await expect(page.locator('.gci-panel')).toHaveClass(/gci-docked/);
+    }
     // Opening the editor is not an insert: the prompt box must stay untouched.
     expect(await promptText(page)).toBe('');
 

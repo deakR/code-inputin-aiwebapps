@@ -14,7 +14,6 @@ import { execFileSync } from 'node:child_process';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { renderIcon } from './make-icons.mjs';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const buildDir = path.join(root, 'build');
@@ -51,8 +50,8 @@ The submitted package was produced from these sources with Node.js 20+:
 \`build.mjs\` is the whole build. esbuild bundles \`src/\` (entry points at the
 bottom of the file) into \`build/content.js\`, \`build/popup/*\` and
 \`build/composer.js\` plus one \`build/composer/*\` chunk per language; it copies
-\`src/manifest.json\` and the popup's HTML/CSS next to them and draws the icons
-with \`tools/make-icons.mjs\`. \`--store\` only strips the localhost match patterns
+\`src/manifest.json\`, the popup's HTML/CSS and the pre-rendered icons from
+\`src/icons/\` next to them. \`--store\` only strips the localhost match patterns
 that the test fixtures use.
 
 The extension talks to no server of its own: the only traffic it causes is the
@@ -103,7 +102,10 @@ execFileSync(process.execPath, [path.join(root, 'build.mjs'), '--store', `--outd
 zip(buildDir, path.join(releaseDir, `${base}.zip`));
 
 // The stores ask for a listing logo separately from the extension's own icons.
-await writeFile(path.join(releaseDir, `${base}-store-icon-300.png`), renderIcon(300));
+await cp(
+  path.join(root, 'src/icons/icon300.png'),
+  path.join(releaseDir, `${base}-store-icon-300.png`),
+);
 
 // 2. The sources, for the reviewer.
 await mkdir(sourceDir, { recursive: true });

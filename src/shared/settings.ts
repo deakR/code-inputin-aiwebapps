@@ -7,6 +7,8 @@ import { ext } from './ext';
  * inconsistent placements in v1.
  */
 export type LauncherMode = 'auto' | 'floating';
+/** How the editor panel opens: dock into the composer when possible, or float. */
+export type PanelMode = 'auto' | 'docked' | 'floating';
 
 export interface Settings {
   /** Default language id for a fresh editor session. */
@@ -18,6 +20,8 @@ export interface Settings {
   /** Show the code launcher in the composer. */
   showLauncher: boolean;
   launcherMode: LauncherMode;
+  /** Editor placement. `auto` docks where the composer can take it. */
+  panelMode: PanelMode;
   /** Shortcut combo to toggle editor, e.g. 'Ctrl+Shift+E'. */
   shortcut: string;
   /**
@@ -36,6 +40,7 @@ export const DEFAULT_SETTINGS: Settings = {
   wrapLines: false,
   showLauncher: true,
   launcherMode: 'auto',
+  panelMode: 'auto',
   shortcut: 'Ctrl+Shift+E',
   panelHeight: 340,
   panelWidth: 760,
@@ -77,16 +82,22 @@ export function matchesShortcut(event: KeyMatchTarget, shortcut: string): boolea
 
 const STORAGE_KEY = 'settings';
 
+function normalizeSettings(value: Partial<Settings> | undefined): Settings {
+  const merged = { ...DEFAULT_SETTINGS, ...(value ?? {}) };
+  // v1 stored coordinate placements; `auto` is the safe migration.
+  if (merged.launcherMode !== 'auto' && merged.launcherMode !== 'floating') {
+    merged.launcherMode = 'auto';
+  }
+  if (merged.panelMode !== 'auto' && merged.panelMode !== 'docked' && merged.panelMode !== 'floating') {
+    merged.panelMode = 'auto';
+  }
+  return merged;
+}
+
 export async function loadSettings(): Promise<Settings> {
   try {
     const stored = await ext.storage.sync.get(STORAGE_KEY);
-    const value = stored?.[STORAGE_KEY] as Partial<Settings> | undefined;
-    const merged = { ...DEFAULT_SETTINGS, ...(value ?? {}) };
-    // v1 stored coordinate placements; `auto` is the safe migration.
-    if (merged.launcherMode !== 'auto' && merged.launcherMode !== 'floating') {
-      merged.launcherMode = 'auto';
-    }
-    return merged;
+    return normalizeSettings(stored?.[STORAGE_KEY] as Partial<Settings> | undefined);
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -105,11 +116,7 @@ export function onSettingsChanged(callback: (settings: Settings) => void): () =>
   ) => {
     if (areaName !== 'sync' || !changes[STORAGE_KEY]) return;
     const value = changes[STORAGE_KEY].newValue as Partial<Settings> | undefined;
-    const merged = { ...DEFAULT_SETTINGS, ...(value ?? {}) };
-    if (merged.launcherMode !== 'auto' && merged.launcherMode !== 'floating') {
-      merged.launcherMode = 'auto';
-    }
-    callback(merged);
+    callback(normalizeSettings(value));
   };
   ext.storage.onChanged.addListener(listener);
   return () => ext.storage.onChanged.removeListener(listener);

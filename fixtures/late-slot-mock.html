@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="gci-site" content="chatgpt" />
+    <title>Late action row — hydration fixture</title>
+    <link rel="stylesheet" href="site-mock.css" />
+    <style>
+      /* The provisional row exists first; the real trailing row hydrates later. */
+      .provisional {
+        justify-content: flex-end;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="conversation"></main>
+    <div id="composer">
+      <form class="composer-form">
+        <div
+          id="prompt-input"
+          class="editor ProseMirror"
+          contenteditable="true"
+          role="textbox"
+          aria-label="Message ChatGPT"
+          data-placeholder="Message ChatGPT"
+        ></div>
+        <div class="actions provisional">
+          <button type="button" id="send-button" class="send" aria-label="Send prompt" disabled>➤</button>
+        </div>
+      </form>
+    </div>
+    <script src="site-mock.js"></script>
+    <script>
+      // A page that hydrates its real action row a beat after the editable.
+      // Only the late row is the adapter's declared slot; the provisional row
+      // is exactly the kind of transient fallback that used to trap the chip.
+      setTimeout(function () {
+        var form = document.querySelector('.composer-form');
+        if (!form) return;
+        var trailing = document.createElement('div');
+        trailing.className = 'actions trailing';
+        trailing.setAttribute('data-slot', 'composer-trailing-actions');
+        var mic = document.createElement('button');
+        mic.type = 'button';
+        mic.className = 'attach';
+        mic.setAttribute('aria-label', 'Dictate');
+        mic.textContent = 'mic';
+        var send = document.getElementById('send-button');
+        if (send) trailing.appendChild(send);
+        trailing.insertBefore(mic, trailing.firstChild);
+        form.appendChild(trailing);
+      }, 900);
+    </script>
+  </body>
+</html>

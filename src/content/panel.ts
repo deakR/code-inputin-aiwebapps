@@ -21,7 +21,7 @@ import {
   saveSettings,
   type Settings,
 } from '../shared/settings';
-import type { SiteAdapter } from '../sites/types';
+import type { AdapterSlot, SiteAdapter } from '../sites/types';
 import {
   findAttachButton,
   findChatInput,
@@ -425,15 +425,34 @@ interface LauncherPlacement {
    * never drag it sideways.
    */
   edge: LauncherEdge;
+  /**
+   * Where the row came from. An adapter row is authoritative and is never
+   * replaced by a guessed row; a scored row is only a fallback for a site
+   * without an adapter slot (or a slot that never appeared).
+   */
+  source: 'adapter' | 'scored' | 'floating';
 }
 
 let launcherPlacement: LauncherPlacement | null = null;
 let launcherRetryTimer: number | undefined;
 /** When the locked row stopped being visible, so a real layout change can win. */
 let launcherHiddenSince = 0;
-let floatingRecoveryTimer: number | undefined;
-/** One automatic "is there an inline row now?" probe after a fallback. */
-let floatingRecoveryDone = false;
+/** A host rebuild detaches the old row for a frame; do not re-score that frame. */
+let launcherRowGoneSince = 0;
+/** The composer the current warm-up window belongs to. */
+let launcherComposer: HTMLElement | null = null;
+/**
+ * The adapter's own action row is the only correct place for the chip. On a
+ * cold page load that row can appear a beat after the editable does; scoring
+ * fallbacks in that window used to lock the chip into a different row, so the
+ * next reload could land somewhere else. Wait for the adapter row instead.
+ */
+const PREFERRED_SLOT_GRACE_MS = 1000;
+let launcherWarmupUntil = 0;
+/** One placement window per page load; composer rebuilds must not restart it. */
+let launcherWarmupStarted = false;
+/** The warm-up expired once; stop hiding the chip and allow a fallback. */
+let preferredSlotGivenUp = false;
 
 /**
  * A page menu or tooltip can cover the chip for a second without the chip's
@@ -681,7 +700,7 @@ function insertHostInSlot(
     const hostRect = host.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
     const composerRect = composer.getBoundingClientRect();
-    const slack = 4;
+    const slack = 8;
     const outsideRow =
       hostRect.width < 8 ||
       hostRect.height < 8 ||
@@ -723,49 +742,59 @@ function placeFloating(host: HTMLElement): void {
   }
 }
 
+/** Put the chip back after a failed attempt to move it to a better row. */
+function restoreLauncherPlacement(host: HTMLElement): void {
+  const placement = launcherPlacement;
+  if (!placement) return;
+  if (placement.mode === 'floating') {
+    placeFloating(host);
+    return;
+  }
+  if (placement.container?.isConnected && placement.container.getClientRects().length > 0) {
+    host.style.setProperty('opacity', '1', 'important');
+    insertAtEdge(host, placement.container, placement.edge);
+  }
+}
+
 function sameComposer(a: HTMLElement, b: HTMLElement): boolean {
   return a === b || a.contains(b) || b.contains(a);
 }
 
 /**
- * A composer can be mid-animation when the first placement is attempted, which
- * sends the chip to the corner even though the action row becomes usable a
- * moment later. Probe inline once more; if there is still no row, stay put.
+ * A composer can be mid-animation when the first placement is attempted. The
+ * adapter's own row is authoritative: wait for it to become measurable instead
+ * of locking a different row that happens to exist on this frame.
  */
-function scheduleFloatingRecovery(): void {
-  if (floatingRecoveryDone) return;
-  floatingRecoveryDone = true;
-  floatingRecoveryTimer = window.setTimeout(() => {
-    floatingRecoveryTimer = undefined;
-    if (isOpen || launcherPlacement?.mode !== 'floating') return;
-    launcherPlacement = null;
-    mountLauncher();
-  }, 1200);
+function preferredLauncherSlot(input: HTMLElement, composer: HTMLElement): AdapterSlot | null {
+  const slot = adapter.launcherSlot?.(input);
+  if (!slot) return null;
+  return isPotentialSlot(slot.container, input, composer) ? slot : null;
 }
 
-function cancelFloatingRecovery(): void {
-  if (!floatingRecoveryTimer) return;
-  window.clearTimeout(floatingRecoveryTimer);
-  floatingRecoveryTimer = undefined;
-}
-
-/** Where the chip should live: a locked composer action row, or a clear corner. */
+/** Where the chip should live: the adapter's row, a scored fallback, or a corner. */
 function mountLauncher(): void {
   const { host } = ensureLauncherHost();
   if (!launcherHost) return;
 
-  const shouldShow = Boolean(match) && settings.showLauncher && !isOpen;
-  if (!shouldShow) {
+  if (!settings.showLauncher || !match) {
     host.remove();
     launcherPlacement = null;
+    launcherComposer = null;
     launcherHiddenSince = 0;
+    launcherRowGoneSince = 0;
+    launcherWarmupUntil = 0;
+    launcherWarmupStarted = false;
+    preferredSlotGivenUp = false;
     if (launcher) launcher.hidden = true;
     return;
   }
 
-  if (!match) {
+  // While the editor is open the chip is hidden, but its verified row is kept:
+  // closing the editor should put the chip back instantly, not start a new
+  // placement search.
+  if (isOpen) {
     host.remove();
-    launcherPlacement = null;
+    if (launcher) launcher.hidden = true;
     return;
   }
 
@@ -774,30 +803,54 @@ function mountLauncher(): void {
   const composer = composerFor(input);
 
   // A rebuilt box often contains the old one (or vice versa). Only a genuinely
-  // different composer invalidates the row and its stable edge.
-  if (launcherPlacement && !sameComposer(launcherPlacement.composer, composer)) {
+  // different composer invalidates the row; the opening grace window belongs to
+  // the page load, so hydration churn cannot keep extending it.
+  if (!launcherComposer || !sameComposer(launcherComposer, composer)) {
+    const firstWindow = !launcherWarmupStarted;
+    launcherComposer = composer;
     launcherPlacement = null;
     launcherHiddenSince = 0;
-    floatingRecoveryDone = false;
+    launcherRowGoneSince = 0;
+    if (firstWindow) {
+      launcherWarmupUntil = Date.now() + PREFERRED_SLOT_GRACE_MS;
+      launcherWarmupStarted = true;
+      preferredSlotGivenUp = false;
+    }
+  } else if (launcherPlacement && !sameComposer(launcherPlacement.composer, composer)) {
+    launcherPlacement = null;
+    launcherHiddenSince = 0;
+    launcherRowGoneSince = 0;
   }
 
   if (settings.launcherMode === 'floating') {
     if (launcherPlacement?.mode !== 'floating' || host.parentElement !== document.body) {
       placeFloating(host);
     }
-    launcherPlacement = { composer, mode: 'floating', container: null, edge: 'end' };
+    launcherPlacement = { composer, mode: 'floating', container: null, edge: 'end', source: 'floating' };
     return;
   }
+
+  const preferred = preferredLauncherSlot(input, composer);
 
   // Keep a verified placement. The browser already keeps an inline chip glued to
   // its row; re-running candidate scoring on every mutation is what let a
   // transient overlay or a half-rendered row move the chip to the other side.
   if (launcherPlacement?.mode === 'inline' && launcherPlacement.container) {
-    const { container, edge } = launcherPlacement;
+    const { container, edge, source } = launcherPlacement;
+    const sameRow = preferred?.container === container;
     if (!container.isConnected) {
+      // React can replace an action row during hydration; a new row often
+      // arrives within a frame. Only a lasting disconnect is a real move.
+      if (!launcherRowGoneSince) launcherRowGoneSince = Date.now();
+      if (Date.now() - launcherRowGoneSince < 200) {
+        scheduleLauncherRetry(150);
+        return;
+      }
       launcherPlacement = null;
+      launcherRowGoneSince = 0;
       launcherHiddenSince = 0;
     } else if (container.getClientRects().length === 0) {
+      launcherRowGoneSince = 0;
       // The site hides the row while a menu is open or the composer collapses.
       // Stay with it for a beat; only a lasting hide counts as a real change.
       if (!launcherHiddenSince) launcherHiddenSince = Date.now();
@@ -808,19 +861,73 @@ function mountLauncher(): void {
       launcherPlacement = null;
       launcherHiddenSince = 0;
     } else {
+      launcherRowGoneSince = 0;
       launcherHiddenSince = 0;
       // Host controls are added and removed around the chip. Put it back on the
       // same stable edge instead of re-scoring; this is the only move allowed.
       if (host.parentElement !== container || !isAtEdge(host, container, edge)) {
         insertAtEdge(host, container, edge);
+        // Re-ending the row can cover a page menu for one frame; retry in place.
+        if (!hostIsClickable(host)) scheduleLauncherRetry();
       }
       launcherPlacement.composer = composer;
-      return;
+      // The adapter row is the final answer. A scored row may still be upgraded
+      // if the adapter row appears after its warm-up window expired.
+      if (source === 'adapter' ? !preferred || sameRow : !preferred) return;
     }
   } else if (launcherPlacement?.mode === 'floating') {
-    if (host.parentElement === document.body) return;
-    placeFloating(host);
-    return;
+    // A floating chip stays put unless the adapter row becomes available; that
+    // is the one visible move worth making, and it happens at most once.
+    if (!preferred) {
+      if (host.parentElement === document.body) return;
+      placeFloating(host);
+      return;
+    }
+  }
+
+  if (preferred) {
+    if (insertHostInSlot(host, preferred.container, preferred.edge, composer)) {
+      launcherPlacement = {
+        composer,
+        mode: 'inline',
+        container: preferred.container,
+        edge: preferred.edge,
+        source: 'adapter',
+      };
+      launcherHiddenSince = 0;
+      launcherWarmupUntil = 0;
+      preferredSlotGivenUp = false;
+      recordHealth('launcher', 'inline:adapter', true);
+      return;
+    }
+    // The row exists but cannot take a clickable child this frame. Keep the old
+    // placement if there is one and retry here rather than falling through to a
+    // different row.
+    if (launcherPlacement) {
+      restoreLauncherPlacement(host);
+      scheduleLauncherRetry(120);
+      return;
+    }
+    if (!preferredSlotGivenUp && Date.now() < launcherWarmupUntil) {
+      host.remove();
+      if (launcher) launcher.hidden = true;
+      scheduleLauncherRetry(120);
+      return;
+    }
+    preferredSlotGivenUp = true;
+  }
+
+  // A site with an adapter slot never locks a guessed row during the opening
+  // frames: a transient extra row is exactly what made the chip move between
+  // reloads. After the grace period the user still gets a chip.
+  if (adapter.launcherSlot && !preferredSlotGivenUp) {
+    if (Date.now() < launcherWarmupUntil) {
+      host.remove();
+      if (launcher) launcher.hidden = true;
+      scheduleLauncherRetry(120);
+      return;
+    }
+    preferredSlotGivenUp = true;
   }
 
   for (const candidate of collectLauncherCandidates(input)) {
@@ -830,18 +937,16 @@ function mountLauncher(): void {
       mode: 'inline',
       container: candidate.container,
       edge: candidate.edge,
+      source: 'scored',
     };
     launcherHiddenSince = 0;
-    floatingRecoveryDone = false;
-    cancelFloatingRecovery();
     recordHealth('launcher', `inline:${candidate.source}`, true);
     return;
   }
 
   placeFloating(host);
-  launcherPlacement = { composer, mode: 'floating', container: null, edge: 'end' };
+  launcherPlacement = { composer, mode: 'floating', container: null, edge: 'end', source: 'floating' };
   recordHealth('launcher', 'floating', false);
-  scheduleFloatingRecovery();
 }
 
 function updateLauncherVisibility(): void {
@@ -1174,19 +1279,30 @@ function updateTheme(force = false): void {
 
 /* ── open / close ──────────────────────────────────────────────────────── */
 
-/**
+/** Puts the panel host inside the composer box, where it gets its own row. */
+function insertPanelHost(node: HTMLElement, target: ComposerDock): void {
+  if (node.parentElement !== target.box) target.box.appendChild(node);
+}
+
+/** True when the panel already sits in the dock; moving it would steal focus. */
+function panelHostIsPlaced(node: HTMLElement, target: ComposerDock): boolean {
+  return node.parentElement === target.box;
+}/**
  * Docks the panel into the host's input box: the host becomes a full-width row
- * of the box's grid, the site's own text row steps aside, and the box grows to
- * hold the editor.
+ * of the box, the site's own text row steps aside, and the box grows to hold
+ * the editor.
  */
-function mountDocked(target: ComposerDock): void {
+function mountDocked(target: ComposerDock): boolean {
   const { host: node, shadow: root } = ensurePanelHost();
   buildPanel(root);
-  if (!panel) return;
+  if (!panel) return false;
 
   // Moving to another box (the host rebuilt the composer): give the old row back.
   if (dock && dock.row !== target.row) showComposerRow();
-  if (node.parentElement !== target.box) target.box.appendChild(node);
+  const already = dock?.box === target.box && dock?.row === target.row;
+  const beforeHeight = already ? 0 : target.box.getBoundingClientRect().height;
+
+  insertPanelHost(node, target);
   applyHostStyles(node, 'docked');
   hideComposerRow(target);
   panel.classList.add('gci-docked');
@@ -1197,6 +1313,29 @@ function mountDocked(target: ComposerDock): void {
   panel.style.removeProperty('width');
   dock = target;
   applyPanelHeight();
+
+  // The shape can look right and still not take a row (a fixed-height box, a
+  // clipped flex row, a grid that drops the extra item). Measure the result and
+  // fall back instead of leaving a half-visible editor in the composer.
+  const boxRect = target.box.getBoundingClientRect();
+  const hostRect = node.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const grew = already || boxRect.height >= beforeHeight + Math.min(48, panelRect.height * 0.5);
+  const fits =
+    grew &&
+    panelRect.width >= 120 &&
+    panelRect.height >= 80 &&
+    hostRect.width >= Math.min(120, boxRect.width * 0.5) &&
+    hostRect.left >= boxRect.left - 8 &&
+    hostRect.right <= boxRect.right + 8;
+
+  if (!fits) {
+    recordHealth('dock', 'composer rejected the row', false);
+    releaseDock();
+    return false;
+  }
+  recordHealth('dock', `${Math.round(boxRect.width)}x${Math.round(boxRect.height)}`, true);
+  return true;
 }
 
 /** The fallback: a floating panel over the page, anchored above the prompt box. */
@@ -1239,6 +1378,28 @@ function releaseDock(): void {
   applyHostStyles(panelHost, 'overlay');
 }
 
+/** Picks the requested editor placement, with a measured dock and a safe float. */
+function placeEditorPanel(): void {
+  if (
+    settings.panelMode !== 'floating' &&
+    dock &&
+    panel?.classList.contains('gci-docked') &&
+    match &&
+    dock.box.isConnected &&
+    dock.box.contains(match.element)
+  ) {
+    // Already docked. Re-resolving the shape while our own row is hidden would
+    // make the hidden text row look like a missing one.
+    return;
+  }
+  if (settings.panelMode !== 'floating' && match) {
+    const target = findComposerDock(match.element);
+    if (target && mountDocked(target)) return;
+  }
+  if (dock) releaseDock();
+  mountFloating();
+}
+
 function openPanel(): void {
   const { shadow: root } = ensurePanelHost();
   buildPanel(root);
@@ -1252,10 +1413,7 @@ function openPanel(): void {
 
   syncControls();
   updateTheme(true);
-
-  const target = match ? findComposerDock(match.element) : null;
-  if (target) mountDocked(target);
-  else mountFloating();
+  placeEditorPanel();
 
   updateInsertState();
   recordHealth('open', match?.selector ?? 'no match', Boolean(match));
@@ -1559,7 +1717,7 @@ function syncDock(): void {
     // The host replaced the text row inside the same box: track the new one.
     dock = fresh;
   }
-  if (panelHost.parentElement !== dock.box) dock.box.appendChild(panelHost);
+  if (!panelHostIsPlaced(panelHost, dock)) insertPanelHost(panelHost, dock);
   if (dock.row.isConnected && getComputedStyle(dock.row).display !== 'none') {
     hideComposerRow(dock);
   }
@@ -1582,12 +1740,7 @@ function observePage(): void {
       }
       if (previous !== (match?.element ?? null)) {
         // The prompt box was replaced: dock into the new one, or fall back.
-        const target = match ? findComposerDock(match.element) : null;
-        if (target) mountDocked(target);
-        else {
-          if (dock) releaseDock();
-          layoutPanel();
-        }
+        placeEditorPanel();
         return;
       }
       syncDock();
@@ -1748,18 +1901,24 @@ export function start(siteAdapter: SiteAdapter): void {
   onSettingsChanged((next) => {
     const wrapChanged = next.wrapLines !== settings.wrapLines;
     const placementChanged = next.launcherMode !== settings.launcherMode;
+    const panelModeChanged = next.panelMode !== settings.panelMode;
     settings = next;
     if (placementChanged) {
       launcherPlacement = null;
+      launcherComposer = null;
       launcherHiddenSince = 0;
-      floatingRecoveryDone = false;
-      cancelFloatingRecovery();
+      launcherWarmupUntil = Date.now() + PREFERRED_SLOT_GRACE_MS;
+      launcherWarmupStarted = true;
+      preferredSlotGivenUp = false;
     }
     syncControls();
     updateLauncherTitle();
     updateLauncherVisibility();
     if (wrapChanged) editor?.setWrap(settings.wrapLines);
-    if (isOpen) layoutPanel();
+    if (isOpen) {
+      if (panelModeChanged) placeEditorPanel();
+      else layoutPanel();
+    }
     updateInsertState();
   });
 

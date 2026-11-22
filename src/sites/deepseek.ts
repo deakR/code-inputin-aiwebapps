@@ -4,7 +4,7 @@ export const deepseekAdapter: SiteAdapter = {
   id: 'deepseek',
   name: 'DeepSeek',
   editorKind: 'textarea',
-  supportsDock: false,
+  supportsDock: true,
   inputSelectors: [
     'textarea#chat-input',
     'textarea[placeholder*="Message DeepSeek" i]',

@@ -4,7 +4,7 @@ export const claudeAdapter: SiteAdapter = {
   id: 'claude',
   name: 'Claude',
   editorKind: 'prosemirror',
-  supportsDock: false,
+  supportsDock: true,
   inputSelectors: [
     'div[aria-label*="Write your prompt" i][contenteditable="true"]',
     'div.ProseMirror[contenteditable="true"]',

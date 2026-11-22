@@ -4,7 +4,7 @@ export const chatgptAdapter: SiteAdapter = {
   id: 'chatgpt',
   name: 'ChatGPT',
   editorKind: 'prosemirror',
-  supportsDock: false,
+  supportsDock: true,
   inputSelectors: [
     '#prompt-textarea',
     '#mobile-composer-prompt',

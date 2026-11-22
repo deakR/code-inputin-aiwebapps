@@ -450,7 +450,9 @@ export function findInputContainer(input: HTMLElement): HTMLElement {
 
   for (const selector of activeAdapter.composerSelectors) {
     const container = input.closest(selector);
-    if (container instanceof HTMLElement && isVisible(container, 40, 20)) return container;
+    if (container instanceof HTMLElement && container !== input && isVisible(container, 40, 20)) {
+      return container;
+    }
   }
 
   const rich = input.closest('rich-textarea');
@@ -473,7 +475,7 @@ export function findComposerBox(input: HTMLElement): HTMLElement | null {
 
   for (const selector of activeAdapter.composerSelectors) {
     const box = input.closest(selector);
-    if (box instanceof HTMLElement && isVisible(box, 40, 20)) return box;
+    if (box instanceof HTMLElement && box !== input && isVisible(box, 40, 20)) return box;
   }
 
   // Relational fallback: the nearest ancestor that contains the input and a
@@ -497,11 +499,64 @@ export interface ComposerDock {
   row: HTMLElement;
 }
 
+/**
+ * A site without an explicit dock shape can still take the editor when its
+ * composer is a vertical box and the editable lives in a row of its own. The
+ * row must not carry the site's controls: hiding those would break the host.
+ *
+ * This is a shape check, not a promise. `mountDocked` measures the result and
+ * falls back to the floating panel if the box does not actually grow.
+ */
+function genericComposerShape(input: HTMLElement): ComposerShape | null {
+  const box = findComposerBox(input);
+  if (!box) return null;
+  // A custom element such as <rich-textarea> is the editing surface, not the
+  // composer surface. Docking there would hide the wrong thing and borrow no
+  // container styling; those sites need an adapter shape.
+  if (box.tagName.includes('-') || box.matches('textarea, input, [contenteditable="true"]')) return null;
+
+  const display = getComputedStyle(box).display;
+  if (display === 'inline' || display === 'contents') return null;
+  if (display.includes('flex')) {
+    const style = getComputedStyle(box);
+    const wraps = style.flexWrap === 'wrap' || style.flexWrap === 'wrap-reverse';
+    if (!style.flexDirection.startsWith('column') && !wraps) return null;
+  }
+
+  // ChatGPT wraps the editable in display:contents nodes. They have no box of
+  // their own, so the row to hide is the outermost ancestor that actually
+  // renders, and the path up to the box may pass through contents wrappers.
+  let row: HTMLElement = input;
+  let node: HTMLElement = input;
+  while (node.parentElement && node.parentElement !== box) {
+    node = node.parentElement;
+    if (getComputedStyle(node).display !== 'contents') row = node;
+  }
+  let parent = row.parentElement;
+  while (parent && parent !== box && getComputedStyle(parent).display === 'contents') {
+    parent = parent.parentElement;
+  }
+  if (parent !== box || row === box) return null;
+
+  for (const control of Array.from(
+    row.querySelectorAll<HTMLElement>('button, [role="button"], input:not([type="hidden"]), select'),
+  )) {
+    if (control !== input && !input.contains(control) && isVisible(control, 4, 4)) return null;
+  }
+
+  const rect = row.getBoundingClientRect();
+  if (rect.width < 60 || rect.height < 14) return null;
+  // Append at the end of the box. Inserting between the text row and the
+  // action bar can land in their explicit grid row and overlap it; the end is
+  // an implicit new row on every grid/flex composer we support.
+  return { box, row, dockable: true };
+}
+
 /** Docking is opt-in per adapter; a shape that does not fit falls back to floating. */
 export function findComposerDock(input: HTMLElement): ComposerDock | null {
   const adapter = getActiveAdapter();
   if (!adapter.supportsDock) return null;
-  const shape: ComposerShape | null = adapter.composer?.(input) ?? null;
+  const shape: ComposerShape | null = adapter.composer?.(input) ?? genericComposerShape(input);
   if (!shape?.dockable || !shape.row) return null;
   return { box: shape.box, row: shape.row };
 }

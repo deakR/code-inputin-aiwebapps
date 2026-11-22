@@ -115,6 +115,61 @@ test('user can pick the real prompt box and the choice survives a reload', async
   expect(await page.locator('#decoy').innerText()).toBe('');
 });
 
+test('waits for the adapter action row instead of locking a provisional row', async ({ page }) => {
+  // Record every visible chip placement from the first frame. A chip that
+  // appears in the provisional row and later moves would leave two entries.
+  await page.addInitScript(() => {
+    const scope = window as unknown as { __gciPlacements: string[] };
+    scope.__gciPlacements = [];
+    let previous = '';
+    const sample = () => {
+      const host = document.getElementById('gci-root');
+      const parent = host?.parentElement ?? null;
+      const rect = host?.getBoundingClientRect();
+      const key = host
+        ? JSON.stringify({
+            slot: parent?.getAttribute('data-slot') ?? null,
+            parent: parent === document.body ? 'body' : parent?.className?.toString() ?? null,
+            box: rect ? [Math.round(rect.x), Math.round(rect.y), Math.round(rect.width), Math.round(rect.height)] : null,
+          })
+        : '';
+      if (key && key !== previous) {
+        scope.__gciPlacements.push(key);
+        previous = key;
+      }
+    };
+    // Mutation callbacks are not throttled in background tabs like setInterval.
+    new MutationObserver(sample).observe(document, { childList: true, subtree: true });
+    sample();
+  });
+
+  await page.goto(`${FIXTURES}/late-slot-mock.html`);
+  await page.bringToFront();
+  await expect(launcher(page)).toBeVisible();
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () => document.getElementById('gci-root')?.parentElement?.getAttribute('data-slot') ?? null,
+        ),
+      { timeout: 4000 },
+    )
+    .toBe('composer-trailing-actions');
+
+  const placements = await page.evaluate(
+    () => (window as unknown as { __gciPlacements: string[] }).__gciPlacements,
+  );
+  const parsed = placements.map(
+    (entry) => JSON.parse(entry) as { slot: string | null; parent: string | null; box: number[] },
+  );
+  expect(parsed.length).toBeGreaterThan(0);
+  // The first visible placement is already the adapter row, and it never moves.
+  expect(parsed[0].slot).toBe('composer-trailing-actions');
+  expect(parsed.every((entry) => entry.slot === 'composer-trailing-actions')).toBe(true);
+  expect(parsed.every((entry) => entry.parent !== 'body')).toBe(true);
+  expect(new Set(parsed.map((entry) => entry.box.join(','))).size).toBe(1);
+});
+
 test('rejects a covered action row and uses the clear row', async ({ page }) => {
   await page.goto(`${FIXTURES}/placement-mock.html`);
   await expect(launcher(page)).toBeVisible();

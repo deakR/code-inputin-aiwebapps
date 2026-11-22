@@ -2,7 +2,6 @@ import * as esbuild from 'esbuild';
 import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { generateIcons } from './tools/make-icons.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const watch = process.argv.includes('--watch');
@@ -23,6 +22,13 @@ const abs = (relative) => path.join(root, relative);
 const staticFiles = [
   ['src/popup/popup.html', 'popup/popup.html'],
   ['src/popup/popup.css', 'popup/popup.css'],
+  // Icons are pre-rendered from src/icons/logo.png so the build never has to
+  // decode or approximate the artwork. 16/32/48 use the mark crop; 128 keeps
+  // the wordmark.
+  ['src/icons/icon16.png', 'icons/icon16.png'],
+  ['src/icons/icon32.png', 'icons/icon32.png'],
+  ['src/icons/icon48.png', 'icons/icon48.png'],
+  ['src/icons/icon128.png', 'icons/icon128.png'],
 ];
 
 /**
@@ -51,7 +57,6 @@ async function copyStatic() {
     await mkdir(path.dirname(destination), { recursive: true });
     await copyFile(abs(from), destination);
   }
-  await generateIcons(path.join(dist, 'icons'));
 }
 
 const common = {

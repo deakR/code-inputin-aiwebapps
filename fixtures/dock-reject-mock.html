@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="gci-site" content="chatgpt" />
+    <title>Dock rejection — fixed-height composer</title>
+    <link rel="stylesheet" href="site-mock.css" />
+    <style>
+      /* A composer that cannot grow: docking must be refused, not clipped. */
+      .composer-form {
+        max-height: 92px;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="conversation"></main>
+    <div id="composer">
+      <form class="composer-form">
+        <div
+          id="prompt-input"
+          class="editor ProseMirror"
+          contenteditable="true"
+          role="textbox"
+          aria-label="Message ChatGPT"
+          data-placeholder="Message ChatGPT"
+        ></div>
+        <div class="actions">
+          <button type="button" class="attach" aria-label="Attach files">+</button>
+          <span class="spacer"></span>
+          <button type="button" id="send-button" class="send" aria-label="Send prompt" disabled>➤</button>
+        </div>
+      </form>
+    </div>
+    <script src="site-mock.js"></script>
+  </body>
+</html>

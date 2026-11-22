@@ -4,7 +4,7 @@ export const perplexityAdapter: SiteAdapter = {
   id: 'perplexity',
   name: 'Perplexity',
   editorKind: 'contenteditable',
-  supportsDock: false,
+  supportsDock: true,
   inputSelectors: [
     'textarea[placeholder*="Ask" i]',
     'div[contenteditable="true"][role="textbox"]',

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/deakR/inset/releases/latest"><img src="https://img.shields.io/badge/release-v2.0.0-blue.svg" alt="Latest Release" /></a>
+  <a href="https://github.com/deakR/inset/releases/latest"><img src="https://img.shields.io/badge/release-v2.0.1-blue.svg" alt="Latest Release" /></a>
   <a href="https://github.com/deakR/inset/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/manifest-v3-blueviolet.svg" alt="Manifest V3" />
 </p>
@@ -33,14 +33,17 @@
 
 - **A real editor, not a textarea** — CodeMirror 6 with syntax highlighting, line numbers, bracket matching, search and undo/redo.
 - **Language aware** — 21 languages, correct indentation, auto-detection on paste and fenced Markdown on insert.
-- **Fits the host composer** — docked inside Gemini, floating above the rest, with a `<>` launcher pinned to the site's own action row.
+- **Fits the host composer** — docked inside Gemini, ChatGPT and Perplexity, and into Claude or DeepSeek when their composer exposes a text row; floating otherwise, with a `<>` launcher pinned to the site's own action row.
+- **Your placement, your call** — the editor can dock into the prompt box or open as a floating panel; **Auto** docks wherever the composer can take it.
 - **Nothing gets lost** — draft autosave, duplicate-insert guard and clipboard fallback.
 - **Redesign-proof** — if a site changes, **Pick prompt box** in the popup repairs it locally.
 - **Private by design** — no telemetry, no backend, no external requests.
 
 ## Supported sites
 
-Google Gemini (docked) · ChatGPT · Claude · DeepSeek · Microsoft Copilot · Perplexity
+Google Gemini · ChatGPT · Claude · DeepSeek · Microsoft Copilot · Perplexity
+
+The editor docks into Gemini, ChatGPT and Perplexity. Claude and DeepSeek use the same measured dock path and fall back to floating when their composer cannot take a row; Copilot keeps the floating panel. Choose **Editor panel → Dock when possible / Docked / Floating** in the popup. If a host composer cannot grow, Inset falls back to the floating panel instead of clipping the editor.
 
 Chrome / Edge / Brave / Arc 114+ · Firefox 140+ · Manifest V3
 
@@ -84,7 +87,7 @@ npm run probe -- https://chatgpt.com/   # inspect a site
 npm run package                   # release zips in release/
 ```
 
-Adding a site is an adapter in `src/sites/` plus a fixture in `fixtures/`; the generic scorer still finds a usable prompt box without either.
+Adding a site is an adapter in `src/sites/` plus a fixture in `fixtures/`; the generic scorer still finds a usable prompt box without either. The toolbar and store icons are pre-rendered from `src/icons/logo.png` and copied by the build.
 
 ## Privacy
 
