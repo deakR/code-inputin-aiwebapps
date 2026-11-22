@@ -15,10 +15,19 @@
   <img src="https://img.shields.io/badge/manifest-v3-blueviolet.svg" alt="Manifest V3" />
 </p>
 
-<p align="center">
-  <img src="docs/images/inset-in-action.png" alt="Inset running in Gemini, ChatGPT, Claude and DeepSeek" width="820" />
-</p>
-<p align="center"><sub>The same editor, inside four different chat apps.</sub></p>
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><img src="docs/images/screenshots/inset-gemini.png" width="390" alt="Inset running in Gemini" /><br /><sub>Gemini</sub></td>
+      <td align="center"><img src="docs/images/screenshots/inset-chatgpt.png" width="390" alt="Inset running in ChatGPT" /><br /><sub>ChatGPT</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="docs/images/screenshots/inset-perplexity.png" width="390" alt="Inset running in Perplexity" /><br /><sub>Perplexity</sub></td>
+      <td align="center"><img src="docs/images/inset-demo.gif" width="390" alt="How Inset works" /><br /><sub>How it works</sub></td>
+    </tr>
+  </table>
+</div>
+<p align="center"><sub>Real captures from Gemini, ChatGPT and Perplexity, plus a live demo.</sub></p>
 
 ## Highlights
 
