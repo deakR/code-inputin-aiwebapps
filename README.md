@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/deakR/inset/releases/latest"><img src="https://img.shields.io/badge/release-v1.1.2-blue.svg" alt="Latest Release" /></a>
+  <a href="https://github.com/deakR/inset/releases/latest"><img src="https://img.shields.io/badge/release-v2.0.0-blue.svg" alt="Latest Release" /></a>
   <a href="https://github.com/deakR/inset/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/manifest-v3-blueviolet.svg" alt="Manifest V3" />
 </p>
