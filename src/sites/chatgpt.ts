@@ -33,15 +33,29 @@ export const chatgptAdapter: SiteAdapter = {
   theme: { accent: '#10a37f', accentDark: '#5fd4b3' },
   copy: { sent: 'Sent to ChatGPT', insertHint: 'Insert into the prompt box' },
   launcherSlot(input) {
-    // The left "Add files" accessory is covered by ChatGPT's own
-    // `composer-accessory` overlay, so a chip placed there cannot be clicked.
-    // The trailing action row is horizontal, stable and above that overlay.
-    // Pin to its outer (right) edge so ChatGPT's own controls coming and going
-    // at the left of the row cannot push the chip around.
     const composer = input.closest('form') ?? input.closest('[data-testid="composer"]');
-    const trailing = composer?.querySelector<HTMLElement>('[data-slot="composer-trailing-actions"]');
+    if (!(composer instanceof HTMLElement)) return null;
+
+    // Prefer the left tool/attach row. On the signed-out home it is a single
+    // 36px button cell with no room for a chip; in that case fall through to
+    // the left edge of the trailing row instead of breaking the host layout.
+    const attach = composer.querySelector<HTMLElement>(
+      '[data-testid="composer-plus-btn"], button[aria-label*="Add files" i], button[aria-label*="Attach" i]',
+    );
+    let row = attach?.parentElement ?? null;
+    for (let depth = 0; row && row !== composer && depth < 3; depth += 1, row = row.parentElement) {
+      const rect = row.getBoundingClientRect();
+      if (rect.width >= 64 && rect.height >= 24 && !row.contains(input)) {
+        return { container: row, edge: 'start' };
+      }
+    }
+
+    // The left edge of the trailing row is still left of ChatGPT's mic and send
+    // controls. The old `end` placement put the chip after the primary action,
+    // which is the inconsistency this left preference removes.
+    const trailing = composer.querySelector<HTMLElement>('[data-slot="composer-trailing-actions"]');
     const rect = trailing?.getBoundingClientRect();
     if (!trailing || !rect || rect.width === 0 || rect.height === 0) return null;
-    return { container: trailing, edge: 'end' };
+    return { container: trailing, edge: 'start' };
   },
 };

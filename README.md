@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/deakR/inset/releases/latest"><img src="https://img.shields.io/badge/release-v2.0.1-blue.svg" alt="Latest Release" /></a>
+  <a href="https://github.com/deakR/inset/releases/latest"><img src="https://img.shields.io/badge/release-v2.0.2-blue.svg" alt="Latest Release" /></a>
   <a href="https://github.com/deakR/inset/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/manifest-v3-blueviolet.svg" alt="Manifest V3" />
 </p>
@@ -33,7 +33,7 @@
 
 - **A real editor, not a textarea** — CodeMirror 6 with syntax highlighting, line numbers, bracket matching, search and undo/redo.
 - **Language aware** — 21 languages, correct indentation, auto-detection on paste and fenced Markdown on insert.
-- **Fits the host composer** — docked inside Gemini, ChatGPT and Perplexity, and into Claude or DeepSeek when their composer exposes a text row; floating otherwise, with a `<>` launcher pinned to the site's own action row.
+- **Fits the host composer** — docked inside Gemini, ChatGPT and Perplexity, and into Claude or DeepSeek when their composer exposes a text row; floating otherwise, with a `<>` launcher on the left of the site's own action row.
 - **Your placement, your call** — the editor can dock into the prompt box or open as a floating panel; **Auto** docks wherever the composer can take it.
 - **Nothing gets lost** — draft autosave, duplicate-insert guard and clipboard fallback.
 - **Redesign-proof** — if a site changes, **Pick prompt box** in the popup repairs it locally.

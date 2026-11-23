@@ -103,6 +103,13 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
 }
 
+/* The chip stays visible while the editor is open; this is its active state. */
+.gci-launcher[aria-expanded='true'] {
+  color: var(--gci-accent);
+  border-color: var(--gci-accent);
+  background: var(--gci-hover);
+}
+
 .gci-launcher svg {
   width: 14px;
   height: 14px;

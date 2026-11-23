@@ -1,8 +1,8 @@
 import type { SiteAdapter } from './types';
 
 /**
- * Gemini's composer is the only one this version docks into. The box is a CSS
- * grid: the text row in one cell and the action buttons in the others. The
+ * Gemini's composer is the only one with an explicit dock shape. The box is a
+ * CSS grid: the text row in one cell and the action buttons in the others. The
  * adapter still returns the box even when the row cannot be identified; the
  * panel then floats instead of docking.
  */
@@ -50,17 +50,19 @@ export const geminiAdapter: SiteAdapter = {
   launcherSlot(input) {
     const box = input.closest('.text-input-field');
     if (!(box instanceof HTMLElement)) return null;
-    // Real Gemini swaps the mic/send controls inside the trailing row as the
-    // prompt goes from empty to typed. The row is anchored to the right edge
-    // of the box, so the chip is pinned to that same outer edge: controls added
-    // at the other end grow the row leftwards instead of dragging the chip.
-    //
-    // Deliberately no `.leading-actions-wrapper` fallback. That wrapper is on the
-    // far left; placing there while the trailing row is briefly unmeasurable is
-    // what makes the chip jump across the whole composer.
-    const container = box.querySelector<HTMLElement>('.trailing-actions-wrapper');
-    const rect = container?.getBoundingClientRect();
-    if (!container || !rect || rect.width === 0 || rect.height === 0) return null;
-    return { container, edge: 'end' };
+    // Keep the chip on the left, next to Gemini's own attach control. The
+    // leading row is anchored to the left edge, so buttons growing at the other
+    // end cannot drag the chip sideways.
+    const leading = box.querySelector<HTMLElement>('.leading-actions-wrapper');
+    const leadingRect = leading?.getBoundingClientRect();
+    if (leading && leadingRect && leadingRect.width > 0 && leadingRect.height > 0) {
+      return { container: leading, edge: 'start' };
+    }
+    // If the leading row is unavailable, stay on the left side of the trailing
+    // controls rather than jumping to the composer's far right.
+    const trailing = box.querySelector<HTMLElement>('.trailing-actions-wrapper');
+    const trailingRect = trailing?.getBoundingClientRect();
+    if (!trailing || !trailingRect || trailingRect.width === 0 || trailingRect.height === 0) return null;
+    return { container: trailing, edge: 'start' };
   },
 };

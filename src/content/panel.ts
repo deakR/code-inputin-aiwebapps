@@ -482,35 +482,7 @@ function rowChildren(container: HTMLElement): Element[] {
   );
 }
 
-/**
- * The end of a row that is anchored to the composer. A right-aligned action row
- * has empty space on its left and none on its right; a left-aligned row is the
- * mirror image. Placing the chip on the anchored side keeps it still while
- * buttons grow the row away from that edge. Ties fall back to which half of the
- * composer the row occupies.
- */
-function stableEdge(container: HTMLElement, composer: HTMLElement): LauncherEdge {
-  const style = getComputedStyle(container);
-  const horizontal = !style.display.includes('flex') || style.flexDirection.startsWith('row');
-  const children = rowChildren(container);
-  const rect = container.getBoundingClientRect();
-
-  if (horizontal && children.length > 0) {
-    const first = children[0].getBoundingClientRect();
-    const last = children[children.length - 1].getBoundingClientRect();
-    const padLeft = parseFloat(style.paddingLeft) || 0;
-    const padRight = parseFloat(style.paddingRight) || 0;
-    const leftGap = first.left - rect.left - padLeft;
-    const rightGap = rect.right - padRight - last.right;
-    if (leftGap > rightGap + 8) return 'end';
-    if (rightGap > leftGap + 8) return 'start';
-  }
-
-  const box = composer.getBoundingClientRect();
-  return rect.left + rect.width / 2 >= box.left + box.width / 2 ? 'end' : 'start';
-}
-
-/** Put the chip at its stable end, in flow, with the browser doing the layout. */
+/** Put the chip at the requested end, in flow, with the browser doing the layout. */
 function insertAtEdge(host: HTMLElement, container: HTMLElement, edge: LauncherEdge): void {
   if (edge === 'end') {
     container.appendChild(host);
@@ -577,14 +549,14 @@ function addSlotCandidate(
   composer: HTMLElement,
   score: number,
   source: string,
-  edge?: LauncherEdge,
+  edge: LauncherEdge = 'start',
 ): void {
   if (!isPotentialSlot(container, input, composer)) return;
   const current = candidates.get(container);
   if (current && current.score >= score) return;
   candidates.set(container, {
     container,
-    edge: edge ?? stableEdge(container, composer),
+    edge,
     score,
     source,
   });
@@ -611,7 +583,7 @@ function collectLauncherCandidates(input: HTMLElement): LauncherSlotCandidate[] 
   if (send) {
     let node: HTMLElement | null = send.parentElement;
     for (let depth = 0; node && depth < 4; depth += 1, node = node.parentElement) {
-      addSlotCandidate(candidates, node, input, composer, 85 - depth * 8, 'send');
+      addSlotCandidate(candidates, node, input, composer, 80 - depth * 8, 'send');
     }
   }
 
@@ -619,7 +591,10 @@ function collectLauncherCandidates(input: HTMLElement): LauncherSlotCandidate[] 
   if (attach) {
     let node: HTMLElement | null = attach.parentElement;
     for (let depth = 0; node && depth < 4; depth += 1, node = node.parentElement) {
-      addSlotCandidate(candidates, node, input, composer, 60 - depth * 7, 'attach');
+      // The chip needs room for a 30px control. A single-button 36px cell would
+      // push its host button out of place; those sites use the send row instead.
+      if (node.getBoundingClientRect().width < 60) continue;
+      addSlotCandidate(candidates, node, input, composer, 95 - depth * 7, 'attach');
     }
   }
 
@@ -789,15 +764,8 @@ function mountLauncher(): void {
     return;
   }
 
-  // While the editor is open the chip is hidden, but its verified row is kept:
-  // closing the editor should put the chip back instantly, not start a new
-  // placement search.
-  if (isOpen) {
-    host.remove();
-    if (launcher) launcher.hidden = true;
-    return;
-  }
-
+  // While the editor is open the chip stays visible. Its verified row is kept,
+  // so opening and closing never starts a new placement search.
   if (launcher) launcher.hidden = false;
   const input = match.element;
   const composer = composerFor(input);
@@ -1849,7 +1817,7 @@ function status() {
     selector: match?.selector ?? null,
     open: isOpen,
     docked: Boolean(dock),
-    launcher: isOpen || !launcherMounted
+    launcher: !launcherMounted
       ? 'hidden'
       : launcherHost?.classList.contains('gci-inline')
         ? 'inline'

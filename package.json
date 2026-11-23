@@ -1,7 +1,7 @@
 {
   "name": "inset",
   "private": true,
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "A real code editor for AI chat prompt boxes, with syntax highlighting, auto-indentation and line numbers.",
   "type": "module",
   "scripts": {

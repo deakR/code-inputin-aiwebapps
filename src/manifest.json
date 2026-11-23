@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Inset",
   "short_name": "Inset",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "A real code editor inside AI chat. Syntax highlighting, auto-indent and line numbers in any prompt box.",
   "permissions": ["storage", "clipboardWrite"],
   "browser_specific_settings": {

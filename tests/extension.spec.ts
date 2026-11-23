@@ -232,6 +232,20 @@ test('shows the launcher inside the prompt box action row', async ({ page }) => 
   expect(hostStyle.top).toBe('');
 });
 
+test('keeps the launcher visible while the editor is open and uses it to close', async ({ page }) => {
+  await page.goto(`${FIXTURES}/gemini-mock.html`);
+  await expect(launcher(page)).toBeVisible();
+  await openEditor(page);
+
+  // The chip stays beside the editor instead of vanishing.
+  await expect(launcher(page)).toBeVisible();
+  expect(await launcher(page).getAttribute('aria-expanded')).toBe('true');
+
+  await launcher(page).click();
+  await expect(panel(page)).toBeHidden();
+  expect(await launcher(page).getAttribute('aria-expanded')).toBe('false');
+});
+
 test('opens the editor with the keyboard shortcut', async ({ page }) => {
   await page.goto(`${FIXTURES}/gemini-mock.html`);
   // The pill is the extension's "ready" signal (settings are loaded by then).

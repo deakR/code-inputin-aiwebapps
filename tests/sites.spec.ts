@@ -66,7 +66,7 @@ function promptSendDisabled(page: import('@playwright/test').Page): Promise<bool
   });
 }
 
-function launcherParentSlot(page: import('@playwright/test').Page): Promise<string | null> {
+function launcherParentClass(page: import('@playwright/test').Page): Promise<string | null> {
   return page.evaluate(() => {
     const findHost = (root: Document | ShadowRoot): HTMLElement | null => {
       const direct = root.querySelector<HTMLElement>('#gci-root');
@@ -80,7 +80,7 @@ function launcherParentSlot(page: import('@playwright/test').Page): Promise<stri
       }
       return null;
     };
-    return findHost(document)?.parentElement?.getAttribute('data-slot') ?? null;
+    return findHost(document)?.parentElement?.className?.toString() ?? null;
   });
 }
 
@@ -110,9 +110,8 @@ for (const site of SITES) {
     expect(await page.evaluate(() => document.documentElement.dataset.gciAdapter)).toBe(site.adapter);
     await expect.poll(() => launcherSlot(page), { timeout: 3000 }).toBe(true);
     if (site.adapter === 'chatgpt') {
-      // ChatGPT has separate attach and trailing rows; the chip must use the
-      // trailing row, not the covered left accessory.
-      await expect.poll(() => launcherParentSlot(page)).toBe('composer-trailing-actions');
+      // The left tool row is preferred when it has room for the chip.
+      await expect.poll(() => launcherParentClass(page)).toContain('attach-row');
     }
 
     // The launcher is the host's own action-row child, not a viewport overlay.

@@ -30,7 +30,7 @@ test('populates settings from stored configuration', async ({ context, page }) =
   await expect(popup.locator('#placement')).toHaveValue('auto');
   await expect(popup.locator('#editor-placement')).toHaveValue('auto');
   await expect(popup.locator('#shortcut')).toHaveValue('Ctrl+Shift+E');
-  await expect(popup.locator('#version')).toContainText('v2.0.1');
+  await expect(popup.locator('#version')).toContainText('v2.0.2');
 });
 
 test('changing floating button setting toggles launcher visibility', async ({ context, page }) => {
